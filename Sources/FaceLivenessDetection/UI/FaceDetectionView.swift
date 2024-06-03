@@ -14,13 +14,19 @@ public struct FaceDetectionView: View {
     public var body: some View {
         FaceDetectionViewController(faceDetectionViewModel: detectionViewModel)
             .overlay(alignment: .bottom) {
-                Text(detectionViewModel.instruction)
+                VStack {
+                    if let result = detectionViewModel.predictionResult {
+                        Text(result.rawValue)
+                    }
+                    Text(detectionViewModel.instruction)
+                }
             }
     }
 }
 
 class FaceDetectionViewModel: ObservableObject {
     @Published var instruction: String
+    @Published var predictionResult: LivenessPredictor.Liveness?
     
     init(instruction: String = "") {
         self.instruction = instruction

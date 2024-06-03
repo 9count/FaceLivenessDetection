@@ -10,6 +10,7 @@ import SwiftUI
 import AVFoundation
 import os
 import Vision
+import VideoToolbox
 
 final class _FaceDetectionViewController: UIViewController {
     var faceDetectionViewModel: FaceDetectionViewModel
@@ -31,6 +32,7 @@ final class _FaceDetectionViewController: UIViewController {
     
     private let videoDepthConverter = DepthToJETConverter()
     private let videoDepthMixer = VideoMixer()
+    private let livenessPredictor = LivenessPredictor()
     
     init(viewModel: FaceDetectionViewModel) {
         self.faceDetectionViewModel = viewModel
@@ -249,12 +251,6 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
 
     }
     
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
-        
-
-    }
-    
     // Analyze the face orientation and provide advice
     func analyzeFaceOrientation(_ face: VNFaceObservation) {
         let yaw = face.yaw?.doubleValue ?? 0.0
@@ -301,7 +297,25 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
             print("No pixel buffer to capture")
             return
         }
-        savePixelBufferAsImage(pixelBuffer: jetPixelBuffer)
+        
+        let ciImage = CIImage(cvPixelBuffer: jetPixelBuffer)
+        let context = CIContext()
+        if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
+            let uiImage = UIImage(cgImage: cgImage)
+            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+            print("Image saved to photo album")
+            do {
+                try livenessPredictor.makePrediction(for: uiImage) { [weak self] liveness in
+                    self?.faceDetectionViewModel.predictionResult = liveness
+                }
+            } catch {
+                logger.debug("predictor failure")
+            }
+        } else {
+            print("Failed to create CGImage from pixel buffer")
+        }
+
+//        savePixelBufferAsImage(pixelBuffer: jetPixelBuffer)
     }
     
     private func savePixelBufferAsImage(pixelBuffer: CVPixelBuffer) {
@@ -316,6 +330,15 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         }
     }
 }
+
+extension CGImage {
+    public static func create(pixelBuffer: CVPixelBuffer) -> CGImage? {
+        var cgImage: CGImage?
+        VTCreateCGImageFromCVPixelBuffer(pixelBuffer, options: nil, imageOut: &cgImage)
+        return cgImage
+    }
+}
+
 
 struct FaceDetectionViewController: UIViewControllerRepresentable {
     @ObservedObject var faceDetectionViewModel: FaceDetectionViewModel
