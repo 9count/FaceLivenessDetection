@@ -13,17 +13,24 @@ import Vision
 
 final class _FaceDetectionViewController: UIViewController {
     var faceDetectionViewModel: FaceDetectionViewModel
-    private var circleView = UIView()
+
+    private var jetView: PreviewMetalView!
     var instructionLabel: UILabel!
     var circleRect: CGRect = .init(x: 0, y: 0, width: 250, height: 250)
+    private var captureButton: UIButton!
     
     // MARK: CaptureSession setup
     private let sessionQueue = DispatchQueue(label: "com.FaceLivenessDetection.session")
     private let videoQueue = DispatchQueue(label: "com.FaceLivenessDetection.video")
     var captureSession = AVCaptureSession()
-    var videoDevice = AVCaptureDevice.default(.builtInWideAngleCamera, for: .video, position: .front)
+    var videoDevice = AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
+    var videoDeviceInput: AVCaptureDeviceInput!
     private let depthDataOutput = AVCaptureDepthDataOutput()
     private let videoDataOutput = AVCaptureVideoDataOutput()
+    private var outputSynchronizer: AVCaptureDataOutputSynchronizer?
+    
+    private let videoDepthConverter = DepthToJETConverter()
+    private let videoDepthMixer = VideoMixer()
     
     init(viewModel: FaceDetectionViewModel) {
         self.faceDetectionViewModel = viewModel
@@ -37,6 +44,7 @@ final class _FaceDetectionViewController: UIViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
         drawCircleView()
+        setupCaptureButton()
 
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized: break
@@ -55,10 +63,32 @@ final class _FaceDetectionViewController: UIViewController {
             self.captureSession.startRunning()
         }
     }
+    
     override func viewDidLayoutSubviews() {
-        setupPreviewLayer()
+        super.viewDidLayoutSubviews()
+//        setupPreviewLayer()
     }
     
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        let interfaceOrientation = UIApplication.shared.statusBarOrientation
+
+        sessionQueue.async {
+            let videoOrientation = self.videoDataOutput.connection(with: .video)!.videoOrientation
+            let videoDevicePosition = self.videoDeviceInput.device.position
+            let rotation = PreviewMetalView.Rotation(with: interfaceOrientation,
+                                                     videoOrientation: videoOrientation,
+                                                     cameraPosition: videoDevicePosition)
+            self.jetView.mirroring = (videoDevicePosition == .front)
+            if let rotation = rotation {
+                self.jetView.rotation = rotation
+            }
+            
+            self.captureSession.startRunning()
+        }
+    }
+    
+    // MARK: Capture session configuration
     func configureCaptureSession() {
         captureSession.beginConfiguration()
         // add input device to session
@@ -69,36 +99,54 @@ final class _FaceDetectionViewController: UIViewController {
             logger.warning("no capture device input found")
             return
         }
+        self.videoDeviceInput = videoDeviceInput
         if captureSession.canAddInput(videoDeviceInput) {
             captureSession.addInput(videoDeviceInput)
         } else {
             logger.warning("input not added")
         }
-        // add output to session
-//        if captureSession.canAddOutput(depthDataOutput) {
-//            captureSession.addOutput(depthDataOutput)
-//            depthDataOutput.isFilteringEnabled = false
-//            if let connection = depthDataOutput.connection(with: .depthData) {
-//                connection.isEnabled = true
-//            } else {
-//                logger.warning("depthDataOutput connection error")
-//            }
-//        }
-        if captureSession.canAddOutput(videoDataOutput) {
-            captureSession.addOutput(videoDataOutput)
-            if let connection = videoDataOutput.connection(with: .video) {
+        // add outputs to session
+        if captureSession.canAddOutput(depthDataOutput) {
+            captureSession.addOutput(depthDataOutput)
+            depthDataOutput.isFilteringEnabled = true
+            if let connection = depthDataOutput.connection(with: .depthData) {
                 connection.isEnabled = true
             } else {
-                logger.warning("video output connection error")
+                logger.warning("depthDataOutput connection error")
             }
+        }
+    
+        if captureSession.canAddOutput(videoDataOutput) {
+            captureSession.addOutput(videoDataOutput)
+            videoDataOutput.videoSettings = [
+                kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
+            ]
             
             logger.info("output setted success")
         } else {
             logger.warning("fail to setup output")
         }
-        captureSession.sessionPreset = .photo
+        // choose 640 x 480 for lower resolution but lower latency than .photo
+        captureSession.sessionPreset = .vga640x480
         
-        videoDataOutput.setSampleBufferDelegate(self, queue: videoQueue)
+        // Search for highest resolution with half-point depth values
+        let depthFormats = videoDevice.activeFormat.supportedDepthDataFormats
+        let filtered = depthFormats.filter { CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat16 }
+        let selectedFormat = filtered.max(by: { first, second in
+            CMVideoFormatDescriptionGetDimensions(first.formatDescription).width < CMVideoFormatDescriptionGetDimensions(second.formatDescription).width
+        })
+        
+        do {
+            try videoDevice.lockForConfiguration()
+            videoDevice.activeDepthDataFormat = selectedFormat
+            videoDevice.unlockForConfiguration()
+        } catch {
+            logger.warning("\(error.localizedDescription)")
+            return
+        }
+        
+        outputSynchronizer = AVCaptureDataOutputSynchronizer(dataOutputs: [videoDataOutput, depthDataOutput])
+        outputSynchronizer!.setDelegate(self, queue: videoQueue)
         captureSession.commitConfiguration()
     }
     
@@ -106,25 +154,31 @@ final class _FaceDetectionViewController: UIViewController {
     func setupPreviewLayer() {
         let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = circleView.bounds
-        previewLayer.cornerRadius = circleView.bounds.width / 2
-        circleView.layer.addSublayer(previewLayer)
+        previewLayer.frame = jetView.bounds
+        previewLayer.cornerRadius = jetView.bounds.width / 2
+        jetView.layer.addSublayer(previewLayer)
     }
     
     func drawCircleView() {
-        view.addSubview(circleView)
-        circleView.translatesAutoresizingMaskIntoConstraints = false
-        
+        jetView = PreviewMetalView(frame: circleRect, device: MTLCreateSystemDefaultDevice())
+        jetView.translatesAutoresizingMaskIntoConstraints = false
+        self.view.addSubview(jetView)
+
+        // Set constraints
         NSLayoutConstraint.activate([
-            circleView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            circleView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
-            circleView.widthAnchor.constraint(equalToConstant: circleRect.width),
-            circleView.heightAnchor.constraint(equalToConstant: circleRect.height)
+            jetView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            jetView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
+            jetView.widthAnchor.constraint(equalToConstant: circleRect.width),
+            jetView.heightAnchor.constraint(equalToConstant: circleRect.height)
         ])
-        
-        circleView.layer.cornerRadius = circleRect.width / 2
-        circleView.layer.borderWidth = 2
-        circleView.layer.borderColor = UIColor.gray.cgColor
+
+        // Configure the appearance to match the original UIView
+        jetView.layer.cornerRadius = circleRect.width / 2
+        jetView.layer.borderWidth = 2
+        jetView.layer.borderColor = UIColor.gray.cgColor
+
+        // Set the delegate to handle rendering if needed
+//        jetView.delegate = self
         
         instructionLabel = UILabel()
         instructionLabel.translatesAutoresizingMaskIntoConstraints = false
@@ -135,15 +189,32 @@ final class _FaceDetectionViewController: UIViewController {
         view.addSubview(instructionLabel)
         
         NSLayoutConstraint.activate([
-            instructionLabel.topAnchor.constraint(equalTo: circleView.bottomAnchor, constant: 30),
-            instructionLabel.centerXAnchor.constraint(equalTo: circleView.centerXAnchor)
+            instructionLabel.topAnchor.constraint(equalTo: jetView.bottomAnchor, constant: 30),
+            instructionLabel.centerXAnchor.constraint(equalTo: jetView.centerXAnchor)
         ])
     }
 }
 
-extension _FaceDetectionViewController: AVCaptureVideoDataOutputSampleBufferDelegate {
-    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
-        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
+    func dataOutputSynchronizer(_ synchronizer: AVCaptureDataOutputSynchronizer, didOutput synchronizedDataCollection: AVCaptureSynchronizedDataCollection) {
+        guard 
+            let syncedDepthData: AVCaptureSynchronizedDepthData = synchronizedDataCollection.synchronizedData(for: depthDataOutput) as? AVCaptureSynchronizedDepthData,
+            let syncedVideoData: AVCaptureSynchronizedSampleBufferData = synchronizedDataCollection.synchronizedData(for: videoDataOutput) as? AVCaptureSynchronizedSampleBufferData else {
+            return
+        }
+        
+        if syncedDepthData.depthDataWasDropped || syncedVideoData.sampleBufferWasDropped { return }
+        
+        let depthData = syncedDepthData.depthData
+        let depthPixelBuffer = depthData.depthDataMap
+        let sampleBuffer = syncedVideoData.sampleBuffer
+        
+
+        
+        guard 
+            let videoPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
+            let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer)
+        else { return }
         
         let request = VNDetectFaceRectanglesRequest { (request, error) in
             if let results = request.results as? [VNFaceObservation] {
@@ -154,8 +225,34 @@ extension _FaceDetectionViewController: AVCaptureVideoDataOutputSampleBufferDele
             }
         }
         
-        let handler = VNImageRequestHandler(cvPixelBuffer: pixelBuffer, options: [:])
+        let handler = VNImageRequestHandler(cvPixelBuffer: videoPixelBuffer, options: [:])
         try? handler.perform([request])
+        
+        if !videoDepthConverter.isPrepared {
+            var depthFormatDescription: CMFormatDescription?
+            CMVideoFormatDescriptionCreateForImageBuffer(allocator: kCFAllocatorDefault, imageBuffer: depthPixelBuffer, formatDescriptionOut: &depthFormatDescription)
+            videoDepthConverter.prepare(with: depthFormatDescription!, outputRetainedBufferCountHint: 2)
+        }
+        
+        guard let jetPixelBuffer = videoDepthConverter.render(pixelBuffer: depthPixelBuffer) else {
+            logger.info("unable to process depth")
+            return
+        }
+        
+        if !videoDepthMixer.isPrepared {
+            videoDepthMixer.prepare(with: formatDescription, outputRetainedBufferCountHint: 3)
+        }
+        
+        guard let mixedBuffer = videoDepthMixer.mix(videoPixelBuffer: videoPixelBuffer, depthPixelBuffer: jetPixelBuffer) else { return }
+        
+        jetView.pixelBuffer = jetPixelBuffer
+
+    }
+    
+    func captureOutput(_ output: AVCaptureOutput, didOutput sampleBuffer: CMSampleBuffer, from connection: AVCaptureConnection) {
+        guard let pixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer) else { return }
+        
+
     }
     
     // Analyze the face orientation and provide advice
@@ -182,6 +279,40 @@ extension _FaceDetectionViewController: AVCaptureVideoDataOutputSampleBufferDele
         }
         DispatchQueue.main.async {
             self.faceDetectionViewModel.instruction = instructionString
+        }
+    }
+
+    private func setupCaptureButton() {
+        captureButton = UIButton(type: .system)
+        captureButton.setTitle("Capture", for: .normal)
+        captureButton.addTarget(self, action: #selector(captureButtonPressed), for: .touchUpInside)
+        captureButton.translatesAutoresizingMaskIntoConstraints = false
+        self.view.addSubview(captureButton)
+
+        // Set constraints
+        NSLayoutConstraint.activate([
+            captureButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
+            captureButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -50)
+        ])
+    }
+    
+    @objc private func captureButtonPressed() {
+        guard let jetPixelBuffer = jetView.pixelBuffer else {
+            print("No pixel buffer to capture")
+            return
+        }
+        savePixelBufferAsImage(pixelBuffer: jetPixelBuffer)
+    }
+    
+    private func savePixelBufferAsImage(pixelBuffer: CVPixelBuffer) {
+        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
+        let context = CIContext()
+        if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
+            let uiImage = UIImage(cgImage: cgImage)
+            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
+            print("Image saved to photo album")
+        } else {
+            print("Failed to create CGImage from pixel buffer")
         }
     }
 }

@@ -12,10 +12,10 @@ public struct FaceDetectionView: View {
     @StateObject var detectionViewModel = FaceDetectionViewModel()
     public init() {}
     public var body: some View {
-        VStack {
-            Text(detectionViewModel.instruction)
-            FaceDetectionViewController(faceDetectionViewModel: detectionViewModel)
-        }
+        FaceDetectionViewController(faceDetectionViewModel: detectionViewModel)
+            .overlay(alignment: .bottom) {
+                Text(detectionViewModel.instruction)
+            }
     }
 }
 

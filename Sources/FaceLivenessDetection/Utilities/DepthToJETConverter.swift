@@ -130,7 +130,10 @@ class DepthToJETConverter: FilterRenderer {
     private var colorBuf: MTLBuffer?
     
     required init() {
-        let defaultLibrary = metalDevice.makeDefaultLibrary()!
+//        let defaultLibrary = metalDevice.makeDefaultLibrary()!
+        let url = Bundle.module.url(forResource: "DepthToJET", withExtension: "metal", subdirectory: "Metal/")!
+        let string = try! String(contentsOf: url)
+        let defaultLibrary = try! metalDevice.makeLibrary(source: string, options: nil)
         let kernelFunction = defaultLibrary.makeFunction(name: "depthToJET")
         do {
             computePipelineState = try metalDevice.makeComputePipelineState(function: kernelFunction!)
