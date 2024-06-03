@@ -8,9 +8,22 @@
 import SwiftUI
 
 public struct FaceDetectionView: View {
+    
+    @StateObject var detectionViewModel = FaceDetectionViewModel()
     public init() {}
     public var body: some View {
-        Text(/*@START_MENU_TOKEN@*/"Hello, World!"/*@END_MENU_TOKEN@*/)
+        VStack {
+            Text(detectionViewModel.instruction)
+            FaceDetectionViewController(faceDetectionViewModel: detectionViewModel)
+        }
+    }
+}
+
+class FaceDetectionViewModel: ObservableObject {
+    @Published var instruction: String
+    
+    init(instruction: String = "") {
+        self.instruction = instruction
     }
 }
 

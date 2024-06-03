@@ -8,6 +8,7 @@ Converts depth values to JET values.
 import CoreMedia
 import CoreVideo
 import Metal
+import HistogramCalculator
 
 struct BGRAPixel {
     var blue: UInt8 = 0
