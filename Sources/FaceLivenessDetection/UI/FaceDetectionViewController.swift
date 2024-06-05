@@ -10,30 +10,37 @@ import SwiftUI
 import AVFoundation
 import os
 import Vision
+import Combine
 import VideoToolbox
 
 final class _FaceDetectionViewController: UIViewController {
     var faceDetectionViewModel: FaceDetectionViewModel
+    private var cancellables = Set<AnyCancellable>()
 
+    // MARK: UI related properties
+    private var jetPreviewLayer: AVCaptureVideoPreviewLayer?
     private var jetView: PreviewMetalView!
-    var instructionLabel: UILabel!
-    var circleRect: CGRect = .init(x: 0, y: 0, width: 250, height: 250)
-    private var captureButton: UIButton!
+    private var circleRect: CGRect = .init(x: 0, y: 0, width: 250, height: 250)
     
-    // MARK: CaptureSession setup
+    // MARK: Custom queues
     private let sessionQueue = DispatchQueue(label: "com.FaceLivenessDetection.session")
     private let videoQueue = DispatchQueue(label: "com.FaceLivenessDetection.video")
-    var captureSession = AVCaptureSession()
-    var videoDevice = AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
-    var videoDeviceInput: AVCaptureDeviceInput!
+    private let visionQueue = DispatchQueue(label: ".com.FaceLivenessDetection.vistion")
+    
+    // MARK: Capture session setup
+    private var captureSession = AVCaptureSession()
+    private var videoDevice = AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
+    private var videoDeviceInput: AVCaptureDeviceInput!
     private let depthDataOutput = AVCaptureDepthDataOutput()
     private let videoDataOutput = AVCaptureVideoDataOutput()
     private var outputSynchronizer: AVCaptureDataOutputSynchronizer?
     
+    // MARK: Video processing helpers
     private let videoDepthConverter = DepthToJETConverter()
     private let videoDepthMixer = VideoMixer()
     private let livenessPredictor = LivenessPredictor()
     
+    // MARK: Initialization
     init(viewModel: FaceDetectionViewModel) {
         self.faceDetectionViewModel = viewModel
         super.init(nibName: nil, bundle: nil)
@@ -43,13 +50,15 @@ final class _FaceDetectionViewController: UIViewController {
         fatalError("init(coder:) has not been implemented")
     }
     
+    // MARK: Lifecycles
     override func viewDidLoad() {
         super.viewDidLoad()
         drawCircleView()
-        setupCaptureButton()
+        setupBindings()
 
         switch AVCaptureDevice.authorizationStatus(for: .video) {
-        case .authorized: break
+        case .authorized:
+            break
         case .notDetermined:
             sessionQueue.suspend()
             
@@ -62,13 +71,13 @@ final class _FaceDetectionViewController: UIViewController {
         
         sessionQueue.async {
             self.configureCaptureSession()
-            self.captureSession.startRunning()
         }
     }
     
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-//        setupPreviewLayer()
+        setupPreviewLayer()
+        updateJetView()
     }
     
     override func viewWillAppear(_ animated: Bool) {
@@ -90,8 +99,37 @@ final class _FaceDetectionViewController: UIViewController {
         }
     }
     
+    // MARK: Private funcs
+    private func setupBindings() {
+        faceDetectionViewModel.$hidePreviewLayer
+            .receive(on: RunLoop.main)
+            .sink { [weak self] shouldHide in
+                self?.hidePreviewLayer(shouldHide)
+            }
+            .store(in: &cancellables)
+
+        faceDetectionViewModel.$instruction
+            .receive(on: RunLoop.main)
+            .sink { [weak self] instructionState in
+                self?.previewLayerStatus(state: instructionState)
+            }
+            .store(in: &cancellables)
+
+        faceDetectionViewModel.captureImagePublisher
+            .sink { _ in
+                self.captureButtonPressed()
+            }
+            .store(in: &cancellables)
+    }
+    
+    private func hidePreviewLayer(_ shouldHide: Bool) {
+        DispatchQueue.main.async {
+            self.jetPreviewLayer?.isHidden = shouldHide
+        }
+    }
+    
     // MARK: Capture session configuration
-    func configureCaptureSession() {
+    private func configureCaptureSession() {
         captureSession.beginConfiguration()
         // add input device to session
         guard 
@@ -152,47 +190,41 @@ final class _FaceDetectionViewController: UIViewController {
         captureSession.commitConfiguration()
     }
     
-    // Make sure to be called at DidLayoutSubview
     func setupPreviewLayer() {
         let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        self.jetPreviewLayer = previewLayer
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = jetView.bounds
         previewLayer.cornerRadius = jetView.bounds.width / 2
+        previewLayer.borderColor = UIColor.green.cgColor
+        previewLayer.borderWidth = 2
         jetView.layer.addSublayer(previewLayer)
+    }
+    
+    func updateJetView() {
+        jetView.layer.cornerRadius = circleRect.width / 2
+        jetView.clipsToBounds = true
+    }
+    
+    func previewLayerStatus(state: FaceDetectionViewModel.FaceDetectionState) {
+        DispatchQueue.main.async {
+            self.jetPreviewLayer?.borderColor = state == .faceFit ? UIColor.green.cgColor : UIColor.red.cgColor
+        }
     }
     
     func drawCircleView() {
         jetView = PreviewMetalView(frame: circleRect, device: MTLCreateSystemDefaultDevice())
         jetView.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(jetView)
-
+        let screenWidth = view.bounds.width
+        let rect = CGRect(x: 0, y: 0, width: screenWidth * 0.64, height: screenWidth * 0.8)
+        self.circleRect = rect
         // Set constraints
         NSLayoutConstraint.activate([
             jetView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
             jetView.centerYAnchor.constraint(equalTo: view.centerYAnchor),
             jetView.widthAnchor.constraint(equalToConstant: circleRect.width),
             jetView.heightAnchor.constraint(equalToConstant: circleRect.height)
-        ])
-
-        // Configure the appearance to match the original UIView
-        jetView.layer.cornerRadius = circleRect.width / 2
-        jetView.layer.borderWidth = 2
-        jetView.layer.borderColor = UIColor.gray.cgColor
-
-        // Set the delegate to handle rendering if needed
-//        jetView.delegate = self
-        
-        instructionLabel = UILabel()
-        instructionLabel.translatesAutoresizingMaskIntoConstraints = false
-        instructionLabel.textAlignment = .center
-        instructionLabel.backgroundColor = UIColor(white: 0, alpha: 0.5)
-        instructionLabel.textColor = .white
-        instructionLabel.font = UIFont.boldSystemFont(ofSize: 18)
-        view.addSubview(instructionLabel)
-        
-        NSLayoutConstraint.activate([
-            instructionLabel.topAnchor.constraint(equalTo: jetView.bottomAnchor, constant: 30),
-            instructionLabel.centerXAnchor.constraint(equalTo: jetView.centerXAnchor)
         ])
     }
 }
@@ -211,24 +243,28 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         let depthPixelBuffer = depthData.depthDataMap
         let sampleBuffer = syncedVideoData.sampleBuffer
         
-
-        
         guard 
             let videoPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
             let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer)
         else { return }
-        
-        let request = VNDetectFaceRectanglesRequest { (request, error) in
+
+        let faceLandmarksRequest = VNDetectFaceLandmarksRequest { [weak self] request, error in
             if let results = request.results as? [VNFaceObservation] {
                 for face in results {
-                    // Analyze face orientation
-                    self.analyzeFaceOrientation(face)
+                    self?.visionQueue.async {
+                        self?.analyzeFaceOrientation(face)
+                    }
+//                    if let landmarks = face.landmarks {
+//                        self?.detectEyeBlink(landmarks: landmarks)
+//                    }
+                }
+            } else {
+                DispatchQueue.main.async {
+                    self?.faceDetectionViewModel.instruction = .noFace
                 }
             }
         }
-        
         let handler = VNImageRequestHandler(cvPixelBuffer: videoPixelBuffer, options: [:])
-        try? handler.perform([request])
         
         if !videoDepthConverter.isPrepared {
             var depthFormatDescription: CMFormatDescription?
@@ -246,96 +282,92 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         }
         
         guard let mixedBuffer = videoDepthMixer.mix(videoPixelBuffer: videoPixelBuffer, depthPixelBuffer: jetPixelBuffer) else { return }
-        
-        jetView.pixelBuffer = jetPixelBuffer
 
+        self.jetView.pixelBuffer = jetPixelBuffer
+        
+        try? handler.perform([faceLandmarksRequest])
     }
     
-    // Analyze the face orientation and provide advice
     func analyzeFaceOrientation(_ face: VNFaceObservation) {
         let yaw = face.yaw?.doubleValue ?? 0.0
         let roll = face.roll?.doubleValue ?? 0.0
         let faceBoundingBox = face.boundingBox
         let faceArea = faceBoundingBox.width * faceBoundingBox.height
-        var instructionString = ""
-        logger.info("\(faceArea), face area")
 
+        var instruction: FaceDetectionViewModel.FaceDetectionState
         if faceArea < 0.1 {
-            instructionString = "Move closer to the camera"
+            instruction = .faceTooFar
         } else if faceArea > 0.2 {
-            instructionString = "Too close to the camera"
+            instruction = .faceTooClose
         } else if abs(yaw) > 0.2 {
             if yaw > 0 {
-                instructionString = "Turn your head to the right"
+                instruction = .faceRight
             } else {
-                instructionString = "Turn your head to the left"
+                instruction = .faceLeft
             }
         } else {
-            instructionString = "Face position is good"
+            instruction = .faceFit
         }
+
+        guard instruction != faceDetectionViewModel.instruction else { return }
         DispatchQueue.main.async {
-            self.faceDetectionViewModel.instruction = instructionString
+            self.faceDetectionViewModel.instruction = instruction
         }
-    }
-
-    private func setupCaptureButton() {
-        captureButton = UIButton(type: .system)
-        captureButton.setTitle("Capture", for: .normal)
-        captureButton.addTarget(self, action: #selector(captureButtonPressed), for: .touchUpInside)
-        captureButton.translatesAutoresizingMaskIntoConstraints = false
-        self.view.addSubview(captureButton)
-
-        // Set constraints
-        NSLayoutConstraint.activate([
-            captureButton.centerXAnchor.constraint(equalTo: view.centerXAnchor),
-            captureButton.bottomAnchor.constraint(equalTo: view.bottomAnchor, constant: -50)
-        ])
     }
     
-    @objc private func captureButtonPressed() {
+    private func detectEyeBlink(landmarks: VNFaceLandmarks2D) {
+        guard let leftEye = landmarks.leftEye, let rightEye = landmarks.rightEye else { return }
+        // Calculate the average distance between the upper and lower points of each eye
+        let leftEyeOpen = isEyeOpen(eye: leftEye)
+        let rightEyeOpen = isEyeOpen(eye: rightEye)
+
+        if !leftEyeOpen && !rightEyeOpen {
+//            captureButtonPressed()
+        } else {
+            logger.info("At least one eye is open")
+        }
+    }
+
+    private func isEyeOpen(eye: VNFaceLandmarkRegion2D) -> Bool {
+        // Ensure there are enough points to perform the calculation
+        guard eye.pointCount >= 4 else {
+            logger.info("Not enough points in eye region: \(eye.pointCount)")
+            return false
+        }
+
+        // Define threshold for considering an eye as open
+        let threshold: CGFloat = 0.02
+
+        // Get the points of the eye
+        let points = eye.normalizedPoints
+
+        // Calculate the vertical distances between upper and lower points
+        let upperPoints = [points[1], points[2]] // typically upper middle points
+        let lowerPoints = [points[4], points[5]] // typically lower middle points
+
+        // Calculate the average vertical distance
+        let verticalDistances = zip(upperPoints, lowerPoints).map { abs($0.y - $1.y) }
+        let averageVerticalDistance = verticalDistances.reduce(0, +) / CGFloat(verticalDistances.count)
+
+        // Check if the average distance is greater than the threshold
+        return averageVerticalDistance > threshold
+    }
+    
+    func captureButtonPressed() {
         guard let jetPixelBuffer = jetView.pixelBuffer else {
-            print("No pixel buffer to capture")
+            logger.debug("No pixel buffer to capture")
             return
         }
-        
-        let ciImage = CIImage(cvPixelBuffer: jetPixelBuffer)
-        let context = CIContext()
-        if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
-            let uiImage = UIImage(cgImage: cgImage)
-            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
-            print("Image saved to photo album")
-            do {
-                try livenessPredictor.makePrediction(for: uiImage) { [weak self] liveness in
+        guard let uiImage = UIImage(pixelBuffer: jetPixelBuffer) else { return }
+        do {
+            try self.livenessPredictor.makePrediction(for: uiImage) { [weak self] liveness in
+                DispatchQueue.main.async {
                     self?.faceDetectionViewModel.predictionResult = liveness
                 }
-            } catch {
-                logger.debug("predictor failure")
             }
-        } else {
-            print("Failed to create CGImage from pixel buffer")
+        } catch {
+            logger.debug("predictor failure")
         }
-
-//        savePixelBufferAsImage(pixelBuffer: jetPixelBuffer)
-    }
-    
-    private func savePixelBufferAsImage(pixelBuffer: CVPixelBuffer) {
-        let ciImage = CIImage(cvPixelBuffer: pixelBuffer)
-        let context = CIContext()
-        if let cgImage = context.createCGImage(ciImage, from: ciImage.extent) {
-            let uiImage = UIImage(cgImage: cgImage)
-            UIImageWriteToSavedPhotosAlbum(uiImage, nil, nil, nil)
-            print("Image saved to photo album")
-        } else {
-            print("Failed to create CGImage from pixel buffer")
-        }
-    }
-}
-
-extension CGImage {
-    public static func create(pixelBuffer: CVPixelBuffer) -> CGImage? {
-        var cgImage: CGImage?
-        VTCreateCGImageFromCVPixelBuffer(pixelBuffer, options: nil, imageOut: &cgImage)
-        return cgImage
     }
 }
 
