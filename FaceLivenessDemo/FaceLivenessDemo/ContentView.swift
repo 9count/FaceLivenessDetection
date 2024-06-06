@@ -10,8 +10,7 @@ import FaceLivenessDetection
 
 struct ContentView: View {
     var body: some View {
-        FaceDetectionView()
-            .frame(height: 500)
+        FaceLivenessDetectionView()
     }
 }
 

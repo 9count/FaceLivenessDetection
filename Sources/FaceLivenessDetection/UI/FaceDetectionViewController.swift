@@ -206,7 +206,7 @@ final class _FaceDetectionViewController: UIViewController {
         jetView.clipsToBounds = true
     }
     
-    func previewLayerStatus(state: FaceDetectionViewModel.FaceDetectionState) {
+    func previewLayerStatus(state: FaceDetectionState) {
         DispatchQueue.main.async {
             self.jetPreviewLayer?.borderColor = state == .faceFit ? UIColor.green.cgColor : UIColor.red.cgColor
         }
@@ -251,9 +251,7 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         let faceLandmarksRequest = VNDetectFaceLandmarksRequest { [weak self] request, error in
             if let results = request.results as? [VNFaceObservation] {
                 for face in results {
-                    self?.visionQueue.async {
-                        self?.analyzeFaceOrientation(face)
-                    }
+                    self?.analyzeFaceOrientation(face)
 //                    if let landmarks = face.landmarks {
 //                        self?.detectEyeBlink(landmarks: landmarks)
 //                    }
@@ -294,7 +292,7 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         let faceBoundingBox = face.boundingBox
         let faceArea = faceBoundingBox.width * faceBoundingBox.height
 
-        var instruction: FaceDetectionViewModel.FaceDetectionState
+        var instruction: FaceDetectionState
         if faceArea < 0.1 {
             instruction = .faceTooFar
         } else if faceArea > 0.2 {
