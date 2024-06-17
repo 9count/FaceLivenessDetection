@@ -23,10 +23,14 @@ public struct _FaceDetectionView: View {
 
 public final class FaceDetectionViewModel: ObservableObject {
     @Published public var instruction: FaceDetectionState = .noFace
-    @Published var predictionResult: LivenessPredictor.Liveness?
+    @Published var predictionResult: LivenessDataModel?
     @Published var hidePreviewLayer: Bool = false
+    @Published var lowLightEnvironment = false
+    
     let captureImagePublisher = PassthroughSubject<Void, Never>()
+    var countDownPublisher: AnyCancellable?
     
     public init() {
     }
+
 }

@@ -39,6 +39,7 @@ final class _FaceDetectionViewController: UIViewController {
     private let videoDepthConverter = DepthToJETConverter()
     private let videoDepthMixer = VideoMixer()
     private let livenessPredictor = LivenessPredictor()
+    private var videoPixelBuffer: CVPixelBuffer?
     
     // MARK: Initialization
     init(viewModel: FaceDetectionViewModel) {
@@ -196,7 +197,7 @@ final class _FaceDetectionViewController: UIViewController {
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = jetView.bounds
         previewLayer.cornerRadius = jetView.bounds.width / 2
-        previewLayer.borderColor = UIColor.green.cgColor
+        previewLayer.borderColor = UIColor(resource: .redDark).cgColor
         previewLayer.borderWidth = 2
         jetView.layer.addSublayer(previewLayer)
     }
@@ -208,7 +209,7 @@ final class _FaceDetectionViewController: UIViewController {
     
     func previewLayerStatus(state: FaceDetectionState) {
         DispatchQueue.main.async {
-            self.jetPreviewLayer?.borderColor = state == .faceFit ? UIColor.green.cgColor : UIColor.red.cgColor
+            self.jetPreviewLayer?.borderColor = state == .faceFit ? UIColor(resource: .greenExtraDark).cgColor : UIColor(resource: .redDark).cgColor
         }
     }
     
@@ -247,14 +248,20 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
             let videoPixelBuffer = CMSampleBufferGetImageBuffer(sampleBuffer),
             let formatDescription = CMSampleBufferGetFormatDescription(sampleBuffer)
         else { return }
-
+        self.videoPixelBuffer = videoPixelBuffer
+        let ciImage = CIImage(cvPixelBuffer: videoPixelBuffer)
+        let averageBrightness = ciImage.averageBrightness()
+        debugPrint(averageBrightness, "brightness")
+        // Check brightness level to determine if it's dark
+        if averageBrightness < 50 {
+            DispatchQueue.main.async { [weak self] in
+                self?.faceDetectionViewModel.lowLightEnvironment = true
+            }
+        }
         let faceLandmarksRequest = VNDetectFaceLandmarksRequest { [weak self] request, error in
-            if let results = request.results as? [VNFaceObservation] {
+            if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
                     self?.analyzeFaceOrientation(face)
-//                    if let landmarks = face.landmarks {
-//                        self?.detectEyeBlink(landmarks: landmarks)
-//                    }
                 }
             } else {
                 DispatchQueue.main.async {
@@ -293,9 +300,9 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         let faceArea = faceBoundingBox.width * faceBoundingBox.height
 
         var instruction: FaceDetectionState
-        if faceArea < 0.1 {
+        if faceArea < 0.15 {
             instruction = .faceTooFar
-        } else if faceArea > 0.2 {
+        } else if faceArea > 0.25 {
             instruction = .faceTooClose
         } else if abs(yaw) > 0.2 {
             if yaw > 0 {
@@ -312,55 +319,23 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
             self.faceDetectionViewModel.instruction = instruction
         }
     }
-    
-    private func detectEyeBlink(landmarks: VNFaceLandmarks2D) {
-        guard let leftEye = landmarks.leftEye, let rightEye = landmarks.rightEye else { return }
-        // Calculate the average distance between the upper and lower points of each eye
-        let leftEyeOpen = isEyeOpen(eye: leftEye)
-        let rightEyeOpen = isEyeOpen(eye: rightEye)
 
-        if !leftEyeOpen && !rightEyeOpen {
-//            captureButtonPressed()
-        } else {
-            logger.info("At least one eye is open")
-        }
-    }
-
-    private func isEyeOpen(eye: VNFaceLandmarkRegion2D) -> Bool {
-        // Ensure there are enough points to perform the calculation
-        guard eye.pointCount >= 4 else {
-            logger.info("Not enough points in eye region: \(eye.pointCount)")
-            return false
-        }
-
-        // Define threshold for considering an eye as open
-        let threshold: CGFloat = 0.02
-
-        // Get the points of the eye
-        let points = eye.normalizedPoints
-
-        // Calculate the vertical distances between upper and lower points
-        let upperPoints = [points[1], points[2]] // typically upper middle points
-        let lowerPoints = [points[4], points[5]] // typically lower middle points
-
-        // Calculate the average vertical distance
-        let verticalDistances = zip(upperPoints, lowerPoints).map { abs($0.y - $1.y) }
-        let averageVerticalDistance = verticalDistances.reduce(0, +) / CGFloat(verticalDistances.count)
-
-        // Check if the average distance is greater than the threshold
-        return averageVerticalDistance > threshold
-    }
-    
     func captureButtonPressed() {
         guard let jetPixelBuffer = jetView.pixelBuffer else {
             logger.debug("No pixel buffer to capture")
             return
         }
-        guard let uiImage = UIImage(pixelBuffer: jetPixelBuffer) else { return }
+        guard let videoPixelBuffer else { return }
+        guard 
+            let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
+            let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)
+        else { return }
+        
         do {
-            try self.livenessPredictor.makePrediction(for: uiImage) { [weak self] liveness in
+            try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
                 DispatchQueue.main.async {
-                    self?.faceDetectionViewModel.predictionResult = liveness
+                    var dataModel = LivenessDataModel(liveness: liveness, confidence: confidence, depthImage: depthUiImage, capturedImage: capturedImage)
+                    self?.faceDetectionViewModel.predictionResult = dataModel
                 }
             }
         } catch {

@@ -19,6 +19,7 @@ let package = Package(
             name: "FaceLivenessDetection",
             dependencies: ["HistogramCalculator"],
             resources: [
+                .process("Resources/"),
                 .copy("Metal/")
             ]
         ),

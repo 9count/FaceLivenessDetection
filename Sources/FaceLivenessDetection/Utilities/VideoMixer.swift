@@ -112,7 +112,7 @@ class VideoMixer {
         var newPixelBuffer: CVPixelBuffer?
         CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, outputPixelBufferPool!, &newPixelBuffer)
         guard let outputPixelBuffer = newPixelBuffer else {
-            print("Allocation failure: Could not get pixel buffer from pool (\(self.description))")
+            debugPrint("Allocation failure: Could not get pixel buffer from pool (\(self.description))")
             return nil
         }
         guard let outputTexture = makeTextureFromCVPixelBuffer(pixelBuffer: outputPixelBuffer),
@@ -127,13 +127,13 @@ class VideoMixer {
         renderPassDescriptor.colorAttachments[0].texture = outputTexture
         
         guard let fullRangeVertexBuffer = fullRangeVertexBuffer else {
-            print("Failed to create Metal vertex buffer")
+            debugPrint("Failed to create Metal vertex buffer")
             CVMetalTextureCacheFlush(textureCache!, 0)
             return nil
         }
         
         guard let sampler = sampler else {
-            print("Failed to create Metal sampler")
+            debugPrint("Failed to create Metal sampler")
             CVMetalTextureCacheFlush(textureCache!, 0)
             return nil
         }
@@ -142,7 +142,7 @@ class VideoMixer {
         guard let commandQueue = commandQueue,
             let commandBuffer = commandQueue.makeCommandBuffer(),
             let commandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: renderPassDescriptor) else {
-                print("Failed to create Metal command queue")
+                debugPrint("Failed to create Metal command queue")
                 CVMetalTextureCacheFlush(textureCache!, 0)
                 return nil
         }
@@ -172,7 +172,7 @@ class VideoMixer {
         var cvTextureOut: CVMetalTexture?
         CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, textureCache, pixelBuffer, nil, .bgra8Unorm, width, height, 0, &cvTextureOut)
         guard let cvTexture = cvTextureOut, let texture = CVMetalTextureGetTexture(cvTexture) else {
-            print("Video mixer failed to create preview texture")
+            debugPrint("Video mixer failed to create preview texture")
             
             CVMetalTextureCacheFlush(textureCache, 0)
             return nil

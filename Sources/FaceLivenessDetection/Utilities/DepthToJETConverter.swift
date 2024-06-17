@@ -241,7 +241,7 @@ class DepthToJETConverter: FilterRenderer {
         var newPixelBuffer: CVPixelBuffer?
         CVPixelBufferPoolCreatePixelBuffer(kCFAllocatorDefault, outputPixelBufferPool!, &newPixelBuffer)
         guard let outputPixelBuffer = newPixelBuffer else {
-            print("Allocation failure: Could not get pixel buffer from pool (\(self.description))")
+            debugPrint("Allocation failure: Could not get pixel buffer from pool (\(self.description))")
             return nil
         }
         
@@ -264,7 +264,7 @@ class DepthToJETConverter: FilterRenderer {
         guard let commandQueue = commandQueue,
             let commandBuffer = commandQueue.makeCommandBuffer(),
             let commandEncoder = commandBuffer.makeComputeCommandEncoder() else {
-                print("Failed to create Metal command queue")
+                debugPrint("Failed to create Metal command queue")
                 CVMetalTextureCacheFlush(textureCache!, 0)
                 return nil
         }
@@ -301,7 +301,7 @@ class DepthToJETConverter: FilterRenderer {
         var cvTextureOut: CVMetalTexture?
         CVMetalTextureCacheCreateTextureFromImage(kCFAllocatorDefault, textureCache, pixelBuffer, nil, textureFormat, width, height, 0, &cvTextureOut)
         guard let cvTexture = cvTextureOut, let texture = CVMetalTextureGetTexture(cvTexture) else {
-            print("Depth converter failed to create preview texture")
+            debugPrint("Depth converter failed to create preview texture")
             CVMetalTextureCacheFlush(textureCache, 0)
             return nil
         }

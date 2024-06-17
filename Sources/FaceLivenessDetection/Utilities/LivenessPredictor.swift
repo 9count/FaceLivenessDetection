@@ -39,7 +39,7 @@ public class LivenessPredictor {
         case fake = "Fake"
     }
     
-    public typealias LivenessPredictionHandler = (_ liveness: Liveness) -> Void
+    public typealias LivenessPredictionHandler = (_ liveness: Liveness, _ confidence: VNConfidence) -> Void
     /// A dictionary of prediction handler functions, each keyed by its Vision request.
     private var predictionHandlers = [VNRequest: LivenessPredictionHandler]()
     
@@ -83,12 +83,12 @@ public class LivenessPredictor {
         }
         
         if let error {
-            print("Vision liveness classification error... \n\n\(error.localizedDescription)")
+            debugPrint("Vision liveness classification error... \n\n\(error.localizedDescription)")
             return
         }
         
         if request.results == nil {
-            print("Vision request had no results.")
+            debugPrint("Vision request had no results.")
             return
         }
         
@@ -96,7 +96,7 @@ public class LivenessPredictor {
             let observations = request.results as? [VNClassificationObservation],
             let result = observations.first
         else {
-            print("VNRequest produced the wrong result type: \(type(of: request.results)).")
+            debugPrint("VNRequest produced the wrong result type: \(type(of: request.results)).")
             return
         }
         
@@ -104,7 +104,7 @@ public class LivenessPredictor {
             return
         }
         
-        predictionHandler(liveness)
+        predictionHandler(liveness, result.confidence)
     }
 }
 
