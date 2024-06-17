@@ -16,6 +16,14 @@ public struct FaceLivenessDetectionView: View {
     public init() {}
     public var body: some View {
         _FaceDetectionView(viewModel: viewModel)
+            .overlay {
+                if let countDown {
+                    Text("\(Int(countDown))")
+                        .font(.veryLargeTitle)
+                        .fontWeight(.bold)
+                        .foregroundStyle(.white.opacity(0.8))
+                }
+            }
             .onChange(of: viewModel.lowLightEnvironment, perform: { value in
                 if value {
                     UIScreen.main.brightness = 1.0
@@ -31,10 +39,6 @@ public struct FaceLivenessDetectionView: View {
             .onChange(of: viewModel.instruction, perform: { value in
                 viewModel.instruction == .faceFit ? startTimer() : stopTimer()
             })
-        
-        if let countDown {
-            Text("\(Int(countDown))")
-        }
 
 //        if let result = viewModel.predictionResult {
 //            Text(result.liveness.rawValue)
