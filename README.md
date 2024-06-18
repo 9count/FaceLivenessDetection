@@ -9,6 +9,10 @@ FaceLivenessDetection is a Swift package that provides a framework for detecting
 - Liveness prediction based on captured images
 - Integration with SwiftUI and UIKit
 
+## Demo
+
+![Liveness Demo](https://github.com/9count/FaceLivenessDetection/assets/82346532/7fdf3f4e-6d74-4f57-a333-2bf614512ade)
+
 ## Requirements
 
 - iOS 15.0+

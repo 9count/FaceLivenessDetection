@@ -12,8 +12,12 @@ public struct FaceLivenessDetectionView: View {
     @StateObject var viewModel = FaceDetectionViewModel()
     let timer = Timer()
     @State private var countDown: TimeInterval?
+    var onCompletion: (Result<LivenessDataModel, Error>) -> ()
     
-    public init() {}
+    public init(onCompletion: @escaping (Result<LivenessDataModel, Error>) -> ()) {
+        self.onCompletion = onCompletion
+    }
+
     public var body: some View {
         _FaceDetectionView(viewModel: viewModel)
             .overlay {
@@ -29,11 +33,16 @@ public struct FaceLivenessDetectionView: View {
                     UIScreen.main.brightness = 1.0
                 }
             })
-//            .onReceive(viewModel.$predictionResult, perform: { result in
-//                guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
+            .onReceive(viewModel.$predictionResult, perform: { result in
+                guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
+                guard let result else {
+                    onCompletion(.failure(LivenessPredictionError.predictionError))
+                    return
+                }
+                onCompletion(.success(result))
 //                UIImageWriteToSavedPhotosAlbum(capturedImage, nil, nil, nil)
 //                UIImageWriteToSavedPhotosAlbum(depthImage, nil, nil, nil)
-//            })
+            })
         
         InstructionView(instruction: viewModel.instruction)
             .onChange(of: viewModel.instruction, perform: { value in
@@ -75,5 +84,12 @@ public struct FaceLivenessDetectionView: View {
 }
 
 #Preview {
-    FaceLivenessDetectionView()
+    FaceLivenessDetectionView { result in
+        switch result {
+        case .success(let model):
+            debugPrint(model.liveness.rawValue)
+        case .failure(let error):
+            debugPrint(error.localizedDescription)
+        }
+    }
 }

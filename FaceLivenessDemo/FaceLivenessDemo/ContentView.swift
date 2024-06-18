@@ -10,7 +10,14 @@ import FaceLivenessDetection
 
 struct ContentView: View {
     var body: some View {
-        FaceLivenessDetectionView()
+        FaceLivenessDetectionView { result in
+            switch result {
+            case .success(let model):
+                debugPrint(model.liveness.rawValue)
+            case .failure(let error):
+                debugPrint(error.localizedDescription)
+            }
+        }
     }
 }
 

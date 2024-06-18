@@ -8,8 +8,12 @@
 import UIKit
 
 public struct LivenessDataModel {
-    let liveness: LivenessPredictor.Liveness
-    let confidence: Float
-    let depthImage: UIImage
-    let capturedImage: UIImage
+    public let liveness: LivenessPredictor.Liveness
+    public let confidence: Float
+    public let depthImage: UIImage
+    public let capturedImage: UIImage
+}
+
+public enum LivenessPredictionError: Error {
+    case predictionError
 }
