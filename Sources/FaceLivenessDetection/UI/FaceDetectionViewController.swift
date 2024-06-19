@@ -250,14 +250,15 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         else { return }
         self.videoPixelBuffer = videoPixelBuffer
         let ciImage = CIImage(cvPixelBuffer: videoPixelBuffer)
-        let averageBrightness = ciImage.averageBrightness()
-
-        // Check brightness level to determine if it's dark
-        if averageBrightness < 50 {
-            DispatchQueue.main.async { [weak self] in
-                self?.faceDetectionViewModel.lowLightEnvironment = true
+        
+        ciImage.averageBrightness { brightness in
+            if brightness < 50 {
+                DispatchQueue.main.async {
+                    self.faceDetectionViewModel.lowLightEnvironment = true
+                }
             }
         }
+
         let faceLandmarksRequest = VNDetectFaceLandmarksRequest { [weak self] request, error in
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
@@ -289,7 +290,7 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         guard let mixedBuffer = videoDepthMixer.mix(videoPixelBuffer: videoPixelBuffer, depthPixelBuffer: jetPixelBuffer) else { return }
 
         self.jetView.pixelBuffer = jetPixelBuffer
-        
+
         try? handler.perform([faceLandmarksRequest])
     }
     

@@ -40,8 +40,6 @@ public struct FaceLivenessDetectionView: View {
                     return
                 }
                 onCompletion(.success(result))
-//                UIImageWriteToSavedPhotosAlbum(capturedImage, nil, nil, nil)
-//                UIImageWriteToSavedPhotosAlbum(depthImage, nil, nil, nil)
             })
         
         InstructionView(instruction: viewModel.instruction)
@@ -50,23 +48,12 @@ public struct FaceLivenessDetectionView: View {
             })
             Spacer()
 
-//        if let result = viewModel.predictionResult {
-//            Text(result.liveness.rawValue)
-//        }
-
-//        HStack {
-//            Button {
-//                viewModel.hidePreviewLayer.toggle()
-//            } label: {
-//                Text("\(viewModel.hidePreviewLayer ? "Show" : "Hide") preview layer")
-//            }
-//        }
     }
     
     func startTimer() {
         stopTimer() // Ensure no existing timer is running
         countDown = 3
-        viewModel.countDownPublisher = Timer.publish(every: 1.0, on: .main, in: .common).autoconnect()
+        viewModel.countDownPublisher = Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()
             .sink { time in
                 guard let countDown else { return }
                 if countDown <= 0 {
