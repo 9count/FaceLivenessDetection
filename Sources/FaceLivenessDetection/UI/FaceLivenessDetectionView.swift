@@ -19,35 +19,37 @@ public struct FaceLivenessDetectionView: View {
     }
 
     public var body: some View {
-        _FaceDetectionView(viewModel: viewModel)
-            .overlay {
-                if let countDown {
-                    Text("\(Int(countDown))")
-                        .font(.veryLargeTitle)
-                        .fontWeight(.bold)
-                        .foregroundStyle(.white.opacity(0.8))
+        VStack {
+            _FaceDetectionView(viewModel: viewModel)
+                .overlay {
+                    if let countDown {
+                        Text("\(Int(countDown))")
+                            .font(.veryLargeTitle)
+                            .fontWeight(.bold)
+                            .foregroundStyle(.white.opacity(0.8))
+                    }
                 }
-            }
-            .onChange(of: viewModel.lowLightEnvironment, perform: { value in
-                if value {
-                    UIScreen.main.brightness = 1.0
-                }
-            })
-            .onReceive(viewModel.$predictionResult, perform: { result in
-                guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
-                guard let result else {
-                    onCompletion(.failure(LivenessPredictionError.predictionError))
-                    return
-                }
-                onCompletion(.success(result))
-            })
-        
-        InstructionView(instruction: viewModel.instruction)
-            .onChange(of: viewModel.instruction, perform: { value in
-                viewModel.instruction == .faceFit ? startTimer() : stopTimer()
-            })
-            Spacer()
+                .onChange(of: viewModel.lowLightEnvironment, perform: { value in
+                    if value {
+                        UIScreen.main.brightness = 1.0
+                    }
+                })
+                .onReceive(viewModel.$predictionResult, perform: { result in
+                    guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
+                    guard let result else {
+                        onCompletion(.failure(LivenessPredictionError.predictionError))
+                        return
+                    }
+                    onCompletion(.success(result))
+                })
+            
+            InstructionView(instruction: viewModel.instruction)
+                .onChange(of: viewModel.instruction, perform: { value in
+                    viewModel.instruction == .faceFit ? startTimer() : stopTimer()
+                })
 
+            Spacer()
+        }
     }
     
     func startTimer() {
