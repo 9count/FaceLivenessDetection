@@ -48,6 +48,7 @@ public struct FaceLivenessDetectionView: View {
             .onChange(of: viewModel.instruction, perform: { value in
                 viewModel.instruction == .faceFit ? startTimer() : stopTimer()
             })
+            Spacer()
 
 //        if let result = viewModel.predictionResult {
 //            Text(result.liveness.rawValue)

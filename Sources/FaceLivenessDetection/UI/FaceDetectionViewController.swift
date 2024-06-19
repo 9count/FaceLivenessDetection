@@ -251,7 +251,7 @@ extension _FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate 
         self.videoPixelBuffer = videoPixelBuffer
         let ciImage = CIImage(cvPixelBuffer: videoPixelBuffer)
         let averageBrightness = ciImage.averageBrightness()
-        debugPrint(averageBrightness, "brightness")
+
         // Check brightness level to determine if it's dark
         if averageBrightness < 50 {
             DispatchQueue.main.async { [weak self] in
