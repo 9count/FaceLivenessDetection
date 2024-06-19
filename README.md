@@ -11,7 +11,7 @@ FaceLivenessDetection is a Swift package that provides a framework for detecting
 
 ## Demo
 
-![Liveness Demo](https://github.com/9count/FaceLivenessDetection/assets/82346532/7fdf3f4e-6d74-4f57-a333-2bf614512ade)
+[![Liveness Demo](https://github.com/9count/FaceLivenessDetection/assets/82346532/b05c7c44-ff84-4511-bd31-2ca606d060eb)](https://github.com/9count/FaceLivenessDetection/assets/82346532/7fdf3f4e-6d74-4f57-a333-2bf614512ade)
 
 ## Requirements
 
