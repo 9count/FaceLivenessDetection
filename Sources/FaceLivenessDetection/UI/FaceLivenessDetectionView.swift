@@ -1,26 +1,26 @@
 //
 //  SwiftUIView.swift
-//  
+//
 //
 //  Created by 鍾哲玄 on 2024/6/6.
 //
 
-import SwiftUI
 import Combine
+import SwiftUI
 
 public struct FaceLivenessDetectionView: View {
-    @StateObject var viewModel = FaceDetectionViewModel()
+    @StateObject private var viewModel = FaceDetectionViewModel()
     let timer = Timer()
     @State private var countDown: TimeInterval?
-    var onCompletion: (Result<LivenessDataModel, Error>) -> ()
-    
-    public init(onCompletion: @escaping (Result<LivenessDataModel, Error>) -> ()) {
+    var onCompletion: (Result<LivenessDataModel, Error>) -> Void
+
+    public init(onCompletion: @escaping (Result<LivenessDataModel, Error>) -> Void) {
         self.onCompletion = onCompletion
     }
 
     public var body: some View {
         VStack {
-            _FaceDetectionView(viewModel: viewModel)
+            FaceDetectionView(viewModel: viewModel)
                 .overlay {
                     if let countDown {
                         Text("\(Int(countDown))")
@@ -42,21 +42,21 @@ public struct FaceLivenessDetectionView: View {
                     }
                     onCompletion(.success(result))
                 })
-            
+
             InstructionView(instruction: viewModel.instruction)
-                .onChange(of: viewModel.instruction, perform: { value in
+                .onChange(of: viewModel.instruction, perform: { _ in
                     viewModel.instruction == .faceFit ? startTimer() : stopTimer()
                 })
 
             Spacer()
         }
     }
-    
+
     func startTimer() {
         stopTimer() // Ensure no existing timer is running
         countDown = 3
         viewModel.countDownPublisher = Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()
-            .sink { time in
+            .sink { _ in
                 guard let countDown else { return }
                 if countDown <= 0 {
                     viewModel.captureImagePublisher.send()
@@ -66,7 +66,7 @@ public struct FaceLivenessDetectionView: View {
                 }
             }
     }
-    
+
     func stopTimer() {
         viewModel.countDownPublisher?.cancel()
         countDown = nil

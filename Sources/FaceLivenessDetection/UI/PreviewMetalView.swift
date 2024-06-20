@@ -1,24 +1,23 @@
 /*
-See LICENSE folder for this sample’s licensing information.
+ See LICENSE folder for this sample’s licensing information.
 
-Abstract:
-Contains view code for Metal.
-*/
+ Abstract:
+ Contains view code for Metal.
+ */
 
+import AVFoundation
 import CoreMedia
 import Metal
 import MetalKit
-import AVFoundation
 
 class PreviewMetalView: MTKView {
-    
     enum Rotation: Int {
         case rotate0Degrees
         case rotate90Degrees
         case rotate180Degrees
         case rotate270Degrees
     }
-    
+
     var mirroring = false {
         didSet {
             syncQueue.sync {
@@ -26,9 +25,9 @@ class PreviewMetalView: MTKView {
             }
         }
     }
-    
-    private var internalMirroring: Bool = false
-    
+
+    private var internalMirroring = false
+
     var rotation: Rotation = .rotate0Degrees {
         didSet {
             syncQueue.sync {
@@ -36,9 +35,9 @@ class PreviewMetalView: MTKView {
             }
         }
     }
-    
+
     private var internalRotation: Rotation = .rotate0Degrees
-    
+
     var pixelBuffer: CVPixelBuffer? {
         didSet {
             syncQueue.sync {
@@ -46,88 +45,92 @@ class PreviewMetalView: MTKView {
             }
         }
     }
-    
+
     private var internalPixelBuffer: CVPixelBuffer?
-    
-    private let syncQueue = DispatchQueue(label: "Preview View Sync Queue", qos: .userInitiated, attributes: [], autoreleaseFrequency: .workItem)
-    
+
+    private let syncQueue = DispatchQueue(
+        label: "Preview View Sync Queue",
+        qos: .userInitiated,
+        attributes: [],
+        autoreleaseFrequency: .workItem)
+
     private var textureCache: CVMetalTextureCache?
-    
-    private var textureWidth: Int = 0
-    
-    private var textureHeight: Int = 0
-    
+
+    private var textureWidth = 0
+
+    private var textureHeight = 0
+
     private var textureMirroring = false
-    
+
     private var textureRotation: Rotation = .rotate0Degrees
-    
+
     private var sampler: MTLSamplerState!
-    
+
     private var renderPipelineState: MTLRenderPipelineState!
-    
+
     private var commandQueue: MTLCommandQueue?
-    
+
     private var vertexCoordBuffer: MTLBuffer!
-    
+
     private var textCoordBuffer: MTLBuffer!
-    
+
     private var internalBounds: CGRect!
-    
+
     private var textureTranform: CGAffineTransform?
-    
+
     func texturePointForView(point: CGPoint) -> CGPoint? {
         var result: CGPoint?
         guard let transform = textureTranform else {
             return result
         }
         let transformPoint = point.applying(transform)
-        
+
         if CGRect(origin: .zero, size: CGSize(width: textureWidth, height: textureHeight)).contains(transformPoint) {
             result = transformPoint
         } else {
             debugPrint("Invalid point \(point) result point \(transformPoint)")
         }
-        
+
         return result
     }
-    
+
     func viewPointForTexture(point: CGPoint) -> CGPoint? {
         var result: CGPoint?
         guard let transform = textureTranform?.inverted() else {
             return result
         }
         let transformPoint = point.applying(transform)
-        
+
         if internalBounds.contains(transformPoint) {
             result = transformPoint
         } else {
             debugPrint("Invalid point \(point) result point \(transformPoint)")
         }
-        
+
         return result
     }
-    
+
     func flushTextureCache() {
         textureCache = nil
     }
-    
+
     private func setupTransform(width: Int, height: Int, mirroring: Bool, rotation: Rotation) {
         var scaleX: Float = 1.0
         var scaleY: Float = 1.0
         var resizeAspect: Float = 1.0
-        
+
         internalBounds = self.bounds
         textureWidth = width
         textureHeight = height
         textureMirroring = mirroring
         textureRotation = rotation
-        
+
         if textureWidth > 0 && textureHeight > 0 {
             switch textureRotation {
             case .rotate0Degrees, .rotate180Degrees:
                 scaleX = Float(internalBounds.width / CGFloat(textureWidth))
                 scaleY = Float(internalBounds.height / CGFloat(textureHeight))
-                
+
             case .rotate90Degrees, .rotate270Degrees:
                 scaleX = Float(internalBounds.width / CGFloat(textureHeight))
                 scaleY = Float(internalBounds.height / CGFloat(textureWidth))
@@ -142,20 +145,20 @@ class PreviewMetalView: MTKView {
             scaleX = scaleY / scaleX
             scaleY = 1.0
         }
-        
+
         if textureMirroring {
             scaleX *= -1.0
         }
-        
+
         // Vertex coordinate takes the gravity into account
         let vertexData: [Float] = [
             -scaleX, -scaleY, 0.0, 1.0,
-            scaleX, -scaleY, 0.0, 1.0,
-            -scaleX, scaleY, 0.0, 1.0,
-            scaleX, scaleY, 0.0, 1.0
+             scaleX, -scaleY, 0.0, 1.0,
+             -scaleX, scaleY, 0.0, 1.0,
+             scaleX, scaleY, 0.0, 1.0
         ]
         vertexCoordBuffer = device!.makeBuffer(bytes: vertexData, length: vertexData.count * MemoryLayout<Float>.size, options: [])
-        
+
         // Texture coordinate takes the rotation into account
         var textData: [Float]
         switch textureRotation {
@@ -166,7 +169,7 @@ class PreviewMetalView: MTKView {
                 0.0, 0.0,
                 1.0, 0.0
             ]
-            
+
         case .rotate180Degrees:
             textData = [
                 1.0, 0.0,
@@ -174,7 +177,7 @@ class PreviewMetalView: MTKView {
                 1.0, 1.0,
                 0.0, 1.0
             ]
-            
+
         case .rotate90Degrees:
             textData = [
                 1.0, 1.0,
@@ -182,7 +185,7 @@ class PreviewMetalView: MTKView {
                 0.0, 1.0,
                 0.0, 0.0
             ]
-            
+
         case .rotate270Degrees:
             textData = [
                 0.0, 0.0,
@@ -192,31 +195,31 @@ class PreviewMetalView: MTKView {
             ]
         }
         textCoordBuffer = device?.makeBuffer(bytes: textData, length: textData.count * MemoryLayout<Float>.size, options: [])
-        
+
         // Calculate the transform from texture coordinates to view coordinates
         var transform = CGAffineTransform.identity
         if textureMirroring {
             transform = transform.concatenating(CGAffineTransform(scaleX: -1, y: 1))
             transform = transform.concatenating(CGAffineTransform(translationX: CGFloat(textureWidth), y: 0))
         }
-        
+
         switch textureRotation {
         case .rotate0Degrees:
             transform = transform.concatenating(CGAffineTransform(rotationAngle: CGFloat(0)))
-            
+
         case .rotate180Degrees:
             transform = transform.concatenating(CGAffineTransform(rotationAngle: CGFloat(Double.pi)))
             transform = transform.concatenating(CGAffineTransform(translationX: CGFloat(textureWidth), y: CGFloat(textureHeight)))
-            
+
         case .rotate90Degrees:
             transform = transform.concatenating(CGAffineTransform(rotationAngle: CGFloat(Double.pi) / 2))
             transform = transform.concatenating(CGAffineTransform(translationX: CGFloat(textureHeight), y: 0))
-            
+
         case .rotate270Degrees:
             transform = transform.concatenating(CGAffineTransform(rotationAngle: 3 * CGFloat(Double.pi) / 2))
             transform = transform.concatenating(CGAffineTransform(translationX: 0, y: CGFloat(textureWidth)))
         }
-        
+
         transform = transform.concatenating(CGAffineTransform(scaleX: CGFloat(resizeAspect), y: CGFloat(resizeAspect)))
         let tranformRect = CGRect(origin: .zero, size: CGSize(width: textureWidth, height: textureHeight)).applying(transform)
         let transX = (internalBounds.size.width - tranformRect.size.width) / 2
@@ -224,38 +227,41 @@ class PreviewMetalView: MTKView {
         transform = transform.concatenating(CGAffineTransform(translationX: transX, y: transY))
         textureTranform = transform.inverted()
     }
-    
+
     override init(frame frameRect: CGRect, device: MTLDevice?) {
         super.init(frame: frameRect, device: device)
         commonInit()
     }
-    
+
     required init(coder: NSCoder) {
         super.init(coder: coder)
         commonInit()
     }
-    
+
     func commonInit() {
-        
+
         device = MTLCreateSystemDefaultDevice()
-        
+
         configureMetal()
-        
+
         createTextureCache()
-        
+
         colorPixelFormat = .bgra8Unorm
     }
-    
+
     func configureMetal() {
-//        let defaultLibrary = device!.makeDefaultLibrary()!
+        //        let defaultLibrary = device!.makeDefaultLibrary()!
         let url = Bundle.module.url(forResource: "PassThrough", withExtension: "metal", subdirectory: "Metal/")!
-        let string = try! String(contentsOf: url)
-        let defaultLibrary = try! device!.makeLibrary(source: string, options: nil)
+        guard
+            let string = try? String(contentsOf: url),
+            let defaultLibrary = try? device?.makeLibrary(source: string, options: nil)
+        else { return }
+
         let pipelineDescriptor = MTLRenderPipelineDescriptor()
         pipelineDescriptor.colorAttachments[0].pixelFormat = .bgra8Unorm
         pipelineDescriptor.vertexFunction = defaultLibrary.makeFunction(name: "vertexPassThrough")
         pipelineDescriptor.fragmentFunction = defaultLibrary.makeFunction(name: "fragmentPassThrough")
-        
+
         // To determine how our textures are sampled, we create a sampler descriptor, which
         // will be used to ask for a sampler state object from our device below.
         let samplerDescriptor = MTLSamplerDescriptor()
@@ -264,16 +270,16 @@ class PreviewMetalView: MTKView {
         samplerDescriptor.minFilter = .linear
         samplerDescriptor.magFilter = .linear
         sampler = device!.makeSamplerState(descriptor: samplerDescriptor)
-        
+
         do {
             renderPipelineState = try device!.makeRenderPipelineState(descriptor: pipelineDescriptor)
         } catch {
             fatalError("Unable to create preview Metal view pipeline state. (\(error))")
         }
-        
+
         commandQueue = device!.makeCommandQueue()
     }
-    
+
     func createTextureCache() {
         var newTextureCache: CVMetalTextureCache?
         if CVMetalTextureCacheCreate(kCFAllocatorDefault, nil, device!, nil, &newTextureCache) == kCVReturnSuccess {
@@ -282,28 +288,28 @@ class PreviewMetalView: MTKView {
             assertionFailure("Unable to allocate texture cache")
         }
     }
-    
+
     override func draw(_ rect: CGRect) {
         var pixelBuffer: CVPixelBuffer?
         var mirroring = false
         var rotation: Rotation = .rotate0Degrees
-        
+
         syncQueue.sync {
             pixelBuffer = internalPixelBuffer
             mirroring = internalMirroring
             rotation = internalRotation
         }
-        
+
         guard let drawable = currentDrawable,
-            let currentRenderPassDescriptor = currentRenderPassDescriptor,
-            let previewPixelBuffer = pixelBuffer else {
-                return
+              let currentRenderPassDescriptor = currentRenderPassDescriptor,
+              let previewPixelBuffer = pixelBuffer else {
+            return
         }
-        
+
         // Create a Metal texture from the image buffer
         let width = CVPixelBufferGetWidth(previewPixelBuffer)
         let height = CVPixelBufferGetHeight(previewPixelBuffer)
-        
+
         if textureCache == nil {
             createTextureCache()
         }
@@ -319,11 +325,11 @@ class PreviewMetalView: MTKView {
                                                   &cvTextureOut)
         guard let cvTexture = cvTextureOut, let texture = CVMetalTextureGetTexture(cvTexture) else {
             debugPrint("Failed to create preview texture")
-            
+
             CVMetalTextureCacheFlush(textureCache!, 0)
             return
         }
-        
+
         if texture.width != textureWidth ||
             texture.height != textureHeight ||
             self.bounds != internalBounds ||
@@ -331,26 +337,26 @@ class PreviewMetalView: MTKView {
             rotation != textureRotation {
             setupTransform(width: texture.width, height: texture.height, mirroring: mirroring, rotation: rotation)
         }
-        
+
         // Set up command buffer and encoder
         guard let commandQueue = commandQueue else {
             debugPrint("Failed to create Metal command queue")
             CVMetalTextureCacheFlush(textureCache!, 0)
             return
         }
-        
+
         guard let commandBuffer = commandQueue.makeCommandBuffer() else {
             debugPrint("Failed to create Metal command buffer")
             CVMetalTextureCacheFlush(textureCache!, 0)
             return
         }
-        
+
         guard let commandEncoder = commandBuffer.makeRenderCommandEncoder(descriptor: currentRenderPassDescriptor) else {
             debugPrint("Failed to create Metal command encoder")
             CVMetalTextureCacheFlush(textureCache!, 0)
             return
         }
-        
+
         commandEncoder.label = "Preview display"
         commandEncoder.setRenderPipelineState(renderPipelineState!)
         commandEncoder.setVertexBuffer(vertexCoordBuffer, offset: 0, index: 0)
@@ -359,86 +365,85 @@ class PreviewMetalView: MTKView {
         commandEncoder.setFragmentSamplerState(sampler, index: 0)
         commandEncoder.drawPrimitives(type: .triangleStrip, vertexStart: 0, vertexCount: 4)
         commandEncoder.endEncoding()
-        
+
         commandBuffer.present(drawable) // Draw to the screen
         commandBuffer.commit()
     }
 }
 
 extension PreviewMetalView.Rotation {
-    
+    // swiftlint:disable:next cyclomatic_complexity
     init?(with interfaceOrientation: UIInterfaceOrientation, videoOrientation: AVCaptureVideoOrientation, cameraPosition: AVCaptureDevice.Position) {
         /*
          Calculate the rotation between the videoOrientation and the interfaceOrientation.
          The direction of the rotation depends upon the camera position.
          */
         switch videoOrientation {
-            
         case .portrait:
             switch interfaceOrientation {
             case .landscapeRight:
                 self = cameraPosition == .front ? .rotate90Degrees : .rotate270Degrees
-                
+
             case .landscapeLeft:
                 self = cameraPosition == .front ? .rotate270Degrees : .rotate90Degrees
-                
+
             case .portrait:
                 self = .rotate0Degrees
-                
+
             case .portraitUpsideDown:
                 self = .rotate180Degrees
-                
+
             default: return nil
             }
-            
+
         case .portraitUpsideDown:
             switch interfaceOrientation {
             case .landscapeRight:
                 self = cameraPosition == .front ? .rotate270Degrees : .rotate90Degrees
-                
+
             case .landscapeLeft:
                 self = cameraPosition == .front ? .rotate90Degrees : .rotate270Degrees
-                
+
             case .portrait:
                 self = .rotate180Degrees
-                
+
             case .portraitUpsideDown:
                 self = .rotate0Degrees
-                
+
             default: return nil
             }
-            
+
         case .landscapeRight:
             switch interfaceOrientation {
             case .landscapeRight:
                 self = .rotate0Degrees
-                
+
             case .landscapeLeft:
                 self = .rotate180Degrees
-                
+
             case .portrait:
                 self = cameraPosition == .front ? .rotate270Degrees : .rotate90Degrees
-                
+
             case .portraitUpsideDown:
                 self = cameraPosition == .front ? .rotate90Degrees : .rotate270Degrees
-                
+
             default: return nil
             }
-            
+
         case .landscapeLeft:
             switch interfaceOrientation {
             case .landscapeLeft:
                 self = .rotate0Degrees
-                
+
             case .landscapeRight:
                 self = .rotate180Degrees
-                
+
             case .portrait:
                 self = cameraPosition == .front ? .rotate90Degrees : .rotate270Degrees
-                
+
             case .portraitUpsideDown:
                 self = cameraPosition == .front ? .rotate270Degrees : .rotate90Degrees
-                
+
             default: return nil
             }
         @unknown default:

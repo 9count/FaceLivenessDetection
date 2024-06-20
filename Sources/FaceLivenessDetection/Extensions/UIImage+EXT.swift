@@ -1,6 +1,6 @@
 //
 //  File.swift
-//  
+//
 //
 //  Created by 鍾哲玄 on 2024/6/5.
 //
@@ -24,7 +24,7 @@ extension UIImage {
         // You can create a UIImage from it if needed
         self.init(cgImage: cgImage)
     }
-    
+
     convenience init?(pixelBuffer: CVPixelBuffer) {
         if let cgImage = CGImage.create(pixelBuffer: pixelBuffer) {
             self.init(cgImage: cgImage)

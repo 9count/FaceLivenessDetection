@@ -8,8 +8,8 @@
 import CoreImage
 import VideoToolbox
 
-extension CGImage {
-    public static func create(pixelBuffer: CVPixelBuffer) -> CGImage? {
+public extension CGImage {
+    static func create(pixelBuffer: CVPixelBuffer) -> CGImage? {
         var cgImage: CGImage?
         VTCreateCGImageFromCVPixelBuffer(pixelBuffer, options: nil, imageOut: &cgImage)
         return cgImage

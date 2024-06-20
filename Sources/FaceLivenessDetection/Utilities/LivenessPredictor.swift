@@ -1,12 +1,12 @@
 //
 //  File.swift
-//  
+//
 //
 //  Created by 鍾哲玄 on 2024/6/3.
 //
 
-import Vision
 import UIKit
+import Vision
 
 /// A convenience class that makes image classification predictions.
 ///
@@ -22,27 +22,27 @@ public class LivenessPredictor {
 
     private static func createImageClassifier() -> VNCoreMLModel {
         let defaultConfig = MLModelConfiguration()
-        
+
         guard let imageClassifierWrapper = try? LivenessClassifierV1(configuration: defaultConfig) else {
             fatalError("App failed to create an image classifier model instance.")
         }
-        
+
         guard let imageClassifierVisionModel = try? VNCoreMLModel(for: imageClassifierWrapper.model) else {
             fatalError("App failed to create a `VNCoreMLModel` instance.")
         }
-        
+
         return imageClassifierVisionModel
     }
-    
+
     public enum Liveness: String {
         case real = "Real"
         case fake = "Fake"
     }
-    
+
     public typealias LivenessPredictionHandler = (_ liveness: Liveness, _ confidence: VNConfidence) -> Void
     /// A dictionary of prediction handler functions, each keyed by its Vision request.
     private var predictionHandlers = [VNRequest: LivenessPredictionHandler]()
-    
+
     /// Generates an image classification prediction for a photo.
     /// - Parameter photo: An image, typically of an object or a scene.
     /// - Tag: makePredictions
@@ -51,25 +51,25 @@ public class LivenessPredictor {
         guard let photoCGImage = photo.cgImage else {
             fatalError("Photo doesn't have underlying CGImage.")
         }
-        
+
         let classificationRequest = createClassificationRequest()
         predictionHandlers[classificationRequest] = completionHandler
-        
+
         let handler = VNImageRequestHandler(cgImage: photoCGImage, orientation: orientation)
         let requests = [classificationRequest]
-        
+
         try handler.perform(requests)
     }
-    
+
     /// Generates a new request instance that uses the Image Predictor's image classifier model.
     private func createClassificationRequest() -> VNImageBasedRequest {
         // Create an image classification request with an image classifier model.
         let classificationRequest = VNCoreMLRequest(model: Self.livenessClassifier, completionHandler: visionRequestHandler)
-        
+
         classificationRequest.imageCropAndScaleOption = .centerCrop
         return classificationRequest
     }
-    
+
     /// The completion handler method that Vision calls when it completes a request.
     /// - Parameters:
     ///   - request: A Vision request.
@@ -81,17 +81,17 @@ public class LivenessPredictor {
         guard let predictionHandler = predictionHandlers.removeValue(forKey: request) else {
             fatalError("Every request must have a prediction handler.")
         }
-        
+
         if let error {
             debugPrint("Vision liveness classification error... \n\n\(error.localizedDescription)")
             return
         }
-        
+
         if request.results == nil {
             debugPrint("Vision request had no results.")
             return
         }
-        
+
         guard
             let observations = request.results as? [VNClassificationObservation],
             let result = observations.first
@@ -99,11 +99,11 @@ public class LivenessPredictor {
             debugPrint("VNRequest produced the wrong result type: \(type(of: request.results)).")
             return
         }
-        
+
         guard let liveness = Liveness(rawValue: result.identifier) else {
             return
         }
-        
+
         predictionHandler(liveness, result.confidence)
     }
 }
@@ -115,15 +115,24 @@ extension CGImagePropertyOrientation {
     /// The two orientation types use different raw values.
     init(_ orientation: UIImage.Orientation) {
         switch orientation {
-            case .up: self = .up
-            case .down: self = .down
-            case .left: self = .left
-            case .right: self = .right
-            case .upMirrored: self = .upMirrored
-            case .downMirrored: self = .downMirrored
-            case .leftMirrored: self = .leftMirrored
-            case .rightMirrored: self = .rightMirrored
-            @unknown default: self = .up
+        case .up:
+            self = .up
+        case .down:
+            self = .down
+        case .left:
+            self = .left
+        case .right:
+            self = .right
+        case .upMirrored:
+            self = .upMirrored
+        case .downMirrored:
+            self = .downMirrored
+        case .leftMirrored:
+            self = .leftMirrored
+        case .rightMirrored:
+            self = .rightMirrored
+        @unknown default:
+            self = .up
         }
     }
 }
