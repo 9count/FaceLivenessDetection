@@ -41,6 +41,9 @@ final class FaceDetectionViewController: UIViewController {
     private let livenessPredictor = LivenessPredictor()
     private var videoPixelBuffer: CVPixelBuffer?
 
+    private var frameSkipCounter = 0
+    private let frameSkipThreshold = 5
+
     // MARK: Initialization
     init(viewModel: FaceDetectionViewModel) {
         self.faceDetectionViewModel = viewModel
@@ -285,11 +288,20 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
         self.jetView.pixelBuffer = jetPixelBuffer
 
+        if faceDetectionViewModel.instruction == .faceFit {
+            analyzeFaceLiveness(jetPixelBuffer)
+        }
+
+        guard frameSkipCounter >= frameSkipThreshold else {
+            frameSkipCounter += 1
+            return
+        }
+
+        frameSkipCounter = 0  // Reset counter
         let faceLandmarksRequest = VNDetectFaceLandmarksRequest { [weak self] request, _ in
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
                     self?.analyzeFaceOrientation(face)
-                    self?.analyzeFaceLiveness(jetPixelBuffer)
                 }
             } else {
                 DispatchQueue.main.async {
@@ -331,26 +343,23 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
     func analyzeFaceLiveness(_ pixelBuffer: CVPixelBuffer) {
         do {
-            if faceDetectionViewModel.instruction == .faceFit {
-                guard let jetPixelBuffer = jetView.pixelBuffer else {
-                    logger.debug("No pixel buffer to capture")
-                    return
-                }
-                guard let videoPixelBuffer else { return }
-                guard
-                    let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
-                    let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)
-                else { return }
-                try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
-                    print(liveness, confidence)
-                    if liveness == .real && confidence > 0.5 {
-                        DispatchQueue.main.async {
-                            self?.faceDetectionViewModel.livenessDetected = true
-                        }
-                    } else {
-                        DispatchQueue.main.async {
-                            self?.faceDetectionViewModel.livenessDetected = false
-                        }
+            guard let jetPixelBuffer = jetView.pixelBuffer else {
+                logger.debug("No pixel buffer to capture")
+                return
+            }
+            guard let videoPixelBuffer else { return }
+            guard
+                let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
+                let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)
+            else { return }
+            try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
+                if liveness == .real && confidence > 0.5 {
+                    DispatchQueue.main.async {
+                        self?.faceDetectionViewModel.livenessDetected = true
+                    }
+                } else {
+                    DispatchQueue.main.async {
+                        self?.faceDetectionViewModel.livenessDetected = false
                     }
                 }
             }
@@ -360,6 +369,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
     }
 
     func captureButtonPressed() {
+        print("capturebutton pressed")
         guard let jetPixelBuffer = jetView.pixelBuffer else {
             logger.debug("No pixel buffer to capture")
             return

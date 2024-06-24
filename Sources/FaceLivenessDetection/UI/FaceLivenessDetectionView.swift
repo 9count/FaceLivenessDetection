@@ -13,7 +13,6 @@ public struct FaceLivenessDetectionView: View {
 
     var onCompletion: (Result<LivenessDataModel, Error>) -> Void
     // for debug
-    @State private var captured = false
 
     public init(onCompletion: @escaping (Result<LivenessDataModel, Error>) -> Void) {
         self.onCompletion = onCompletion
@@ -28,9 +27,6 @@ public struct FaceLivenessDetectionView: View {
                     }
                 })
                 .onReceive(viewModel.$predictionResult, perform: { result in
-                    if result?.liveness == .fake {
-                        captured = false
-                    }
                     guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
                     guard let result else {
                         onCompletion(.failure(LivenessPredictionError.predictionError))
@@ -38,14 +34,9 @@ public struct FaceLivenessDetectionView: View {
                     }
                     onCompletion(.success(result))
                 })
-                .onChange(of: viewModel.instruction, perform: { _ in
-                    if viewModel.instruction == .faceFit && viewModel.livenessDetected {
-                        if !captured {
-                            viewModel.captureImagePublisher.send()
-                            captured = true
-                        }
-                    }
-                })
+                .onAppear {
+                    viewModel.reset()
+                }
 
             if viewModel.instruction == .faceFit && viewModel.livenessDetected {
                 Text("Verifying")
