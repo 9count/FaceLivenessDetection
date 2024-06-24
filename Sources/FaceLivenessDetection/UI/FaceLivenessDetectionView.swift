@@ -10,9 +10,10 @@ import SwiftUI
 
 public struct FaceLivenessDetectionView: View {
     @StateObject private var viewModel = FaceDetectionViewModel()
-    let timer = Timer()
-    @State private var countDown: TimeInterval?
+
     var onCompletion: (Result<LivenessDataModel, Error>) -> Void
+    // for debug
+    @State private var captured = false
 
     public init(onCompletion: @escaping (Result<LivenessDataModel, Error>) -> Void) {
         self.onCompletion = onCompletion
@@ -21,20 +22,15 @@ public struct FaceLivenessDetectionView: View {
     public var body: some View {
         VStack {
             FaceDetectionView(viewModel: viewModel)
-                .overlay {
-                    if let countDown {
-                        Text("\(Int(countDown))")
-                            .font(.veryLargeTitle)
-                            .fontWeight(.bold)
-                            .foregroundStyle(.white.opacity(0.8))
-                    }
-                }
                 .onChange(of: viewModel.lowLightEnvironment, perform: { value in
                     if value {
                         UIScreen.main.brightness = 1.0
                     }
                 })
                 .onReceive(viewModel.$predictionResult, perform: { result in
+                    if result?.liveness == .fake {
+                        captured = false
+                    }
                     guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
                     guard let result else {
                         onCompletion(.failure(LivenessPredictionError.predictionError))
@@ -42,34 +38,28 @@ public struct FaceLivenessDetectionView: View {
                     }
                     onCompletion(.success(result))
                 })
-
-            InstructionView(instruction: viewModel.instruction)
                 .onChange(of: viewModel.instruction, perform: { _ in
-                    viewModel.instruction == .faceFit ? startTimer() : stopTimer()
+                    if viewModel.instruction == .faceFit && viewModel.livenessDetected {
+                        if !captured {
+                            viewModel.captureImagePublisher.send()
+                            captured = true
+                        }
+                    }
                 })
+
+            if viewModel.instruction == .faceFit && viewModel.livenessDetected {
+                Text("Verifying")
+                    .foregroundStyle(Color(.greenExtraDark))
+                    .font(.headline)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .frame(maxWidth: .infinity)
+            } else {
+                InstructionView(instruction: viewModel.instruction)
+            }
 
             Spacer()
         }
-    }
-
-    func startTimer() {
-        stopTimer() // Ensure no existing timer is running
-        countDown = 3
-        viewModel.countDownPublisher = Timer.publish(every: 0.7, on: .main, in: .common).autoconnect()
-            .sink { _ in
-                guard let countDown else { return }
-                if countDown <= 0 {
-                    viewModel.captureImagePublisher.send()
-                    stopTimer()
-                } else {
-                    self.countDown = countDown - 1
-                }
-            }
-    }
-
-    func stopTimer() {
-        viewModel.countDownPublisher?.cancel()
-        countDown = nil
     }
 }
 

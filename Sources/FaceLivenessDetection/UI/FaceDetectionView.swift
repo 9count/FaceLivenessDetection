@@ -23,6 +23,7 @@ public struct FaceDetectionView: View {
 
 public final class FaceDetectionViewModel: ObservableObject {
     @Published public var instruction: FaceDetectionState = .noFace
+    @Published public var livenessDetected = false
     @Published var predictionResult: LivenessDataModel?
     @Published var hidePreviewLayer = false
     @Published var lowLightEnvironment = false
@@ -31,5 +32,11 @@ public final class FaceDetectionViewModel: ObservableObject {
     var countDownPublisher: AnyCancellable?
 
     public init() {
+    }
+
+    public func reset() {
+        instruction = .noFace
+        livenessDetected = false
+        predictionResult = nil
     }
 }
