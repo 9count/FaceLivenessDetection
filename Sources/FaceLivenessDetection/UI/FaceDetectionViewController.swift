@@ -310,8 +310,9 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             }
         }
         let handler = VNImageRequestHandler(cvPixelBuffer: videoPixelBuffer, options: [:])
-
-        try? handler.perform([faceLandmarksRequest])
+        if faceDetectionViewModel.canAnalyzeFace {
+            try? handler.perform([faceLandmarksRequest])
+        }
     }
 
     func analyzeFaceOrientation(_ face: VNFaceObservation) {
@@ -325,7 +326,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             instruction = .faceTooFar
         } else if faceArea > 0.25 {
             instruction = .faceTooClose
-        } else if abs(yaw) > 0.2 {
+        } else if abs(yaw) > 0.10 {
             if yaw > 0 {
                 instruction = .faceRight
             } else {

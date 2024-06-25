@@ -10,6 +10,7 @@ import SwiftUI
 
 public struct FaceLivenessDetectionView: View {
     @StateObject private var viewModel = FaceDetectionViewModel()
+    @State private var verifying = false
 
     var onCompletion: (Result<LivenessDataModel, Error>) -> Void
     // for debug
@@ -21,6 +22,12 @@ public struct FaceLivenessDetectionView: View {
     public var body: some View {
         VStack {
             FaceDetectionView(viewModel: viewModel)
+                .overlay {
+                    if verifying {
+                        CountdownProgressView(2)
+                            .frame(width: 100, height: 100)
+                    }
+                }
                 .onChange(of: viewModel.lowLightEnvironment, perform: { value in
                     if value {
                         UIScreen.main.brightness = 1.0
@@ -32,10 +39,15 @@ public struct FaceLivenessDetectionView: View {
                         onCompletion(.failure(LivenessPredictionError.predictionError))
                         return
                     }
-                    onCompletion(.success(result))
+                    verifying = true
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
+                        verifying = false
+                        onCompletion(.success(result))
+                    }
                 })
                 .onAppear {
                     viewModel.reset()
+                    viewModel.setupDelayTimer()
                 }
 
             if viewModel.instruction == .faceFit && viewModel.livenessDetected {
@@ -54,13 +66,13 @@ public struct FaceLivenessDetectionView: View {
     }
 }
 
-#Preview {
-    FaceLivenessDetectionView { result in
-        switch result {
-        case .success(let model):
-            debugPrint(model.liveness.rawValue)
-        case .failure(let error):
-            debugPrint(error.localizedDescription)
-        }
-    }
-}
+//#Preview {
+//    FaceLivenessDetectionView { result in
+//        switch result {
+//        case .success(let model):
+//            debugPrint(model.liveness.rawValue)
+//        case .failure(let error):
+//            debugPrint(error.localizedDescription)
+//        }
+//    }
+//}

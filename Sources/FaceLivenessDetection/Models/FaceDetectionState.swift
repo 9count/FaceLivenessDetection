@@ -14,6 +14,4 @@ public enum FaceDetectionState: String {
     case faceRight = "Please turn your face right"
     case faceLeft = "Please turn your face left"
     case noFace = "Detecting Face in the camera view..."
-    case noLiveness = "Unable to perform biometric recognition"
-    case livenessDetected = "Verifying..."
 }

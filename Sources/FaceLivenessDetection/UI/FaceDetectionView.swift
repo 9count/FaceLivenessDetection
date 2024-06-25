@@ -28,6 +28,7 @@ public final class FaceDetectionViewModel: ObservableObject {
     @Published var hidePreviewLayer = false
     @Published var lowLightEnvironment = false
     @Published var captured = false
+    @Published var canAnalyzeFace = false
 
     let captureImagePublisher = PassthroughSubject<Void, Never>()
     var countDownPublisher: AnyCancellable?
@@ -55,5 +56,12 @@ public final class FaceDetectionViewModel: ObservableObject {
         livenessDetected = false
         predictionResult = nil
         captured = false
+        canAnalyzeFace = false
+    }
+
+    public func setupDelayTimer() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
+            self.canAnalyzeFace = true
+        }
     }
 }
