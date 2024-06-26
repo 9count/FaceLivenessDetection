@@ -66,13 +66,13 @@ public struct FaceLivenessDetectionView: View {
     }
 }
 
-//#Preview {
-//    FaceLivenessDetectionView { result in
-//        switch result {
-//        case .success(let model):
-//            debugPrint(model.liveness.rawValue)
-//        case .failure(let error):
-//            debugPrint(error.localizedDescription)
-//        }
-//    }
-//}
+#Preview {
+    FaceLivenessDetectionView { result in
+        switch result {
+            case .success(let model):
+                debugPrint(model.liveness.rawValue)
+            case .failure(let error):
+                debugPrint(error.localizedDescription)
+        }
+    }
+}
