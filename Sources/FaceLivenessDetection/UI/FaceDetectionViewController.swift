@@ -327,11 +327,12 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         } else if faceArea > 0.25 {
             instruction = .faceTooClose
         } else if abs(yaw) > 0.10 {
-            if yaw > 0 {
-                instruction = .faceRight
-            } else {
-                instruction = .faceLeft
-            }
+            instruction = .faceFront
+//            if yaw > 0 {
+//                instruction = .faceRight
+//            } else {
+//                instruction = .faceLeft
+//            }
         } else {
             instruction = .faceFit
         }

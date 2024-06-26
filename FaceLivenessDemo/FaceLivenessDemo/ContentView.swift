@@ -26,6 +26,7 @@ struct ContentView: View {
             .navigationDestination(isPresented: $verifying) {
                 if let model {
                     Text(model.liveness.rawValue)
+                    Text("\(model.confidence)")
 
                     Image(uiImage: model.depthImage)
                 }
