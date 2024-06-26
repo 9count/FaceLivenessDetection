@@ -152,7 +152,7 @@ final class FaceDetectionViewController: UIViewController {
         // add outputs to session
         if captureSession.canAddOutput(depthDataOutput) {
             captureSession.addOutput(depthDataOutput)
-            depthDataOutput.isFilteringEnabled = true
+            depthDataOutput.isFilteringEnabled = false
             if let connection = depthDataOutput.connection(with: .depthData) {
                 connection.isEnabled = true
             } else {
