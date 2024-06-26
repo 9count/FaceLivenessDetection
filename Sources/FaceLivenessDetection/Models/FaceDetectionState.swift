@@ -8,10 +8,9 @@
 import Foundation
 
 public enum FaceDetectionState: String {
-    case faceTooFar = "Please move closer and fit your face in this camera view"
-    case faceTooClose = "Please move farer and fit your face in this camera view"
-    case faceFit = "Perfect!Now please hold your position for a few seconds while we verify..."
-    case faceRight = "Please turn your face right"
-    case faceLeft = "Please turn your face left"
-    case noFace = "Detecting Face in the camera view..."
+    case faceTooFar = "Please move closer"
+    case faceTooClose = "Please move farther"
+    case faceFit = "Perfect!"
+    case faceFront = "Please turn your face toward the camera"
+    case noFace = "Please move your face inside the camera view"
 }

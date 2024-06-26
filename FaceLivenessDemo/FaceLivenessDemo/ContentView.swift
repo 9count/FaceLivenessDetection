@@ -9,15 +9,30 @@ import SwiftUI
 import FaceLivenessDetection
 
 struct ContentView: View {
+    @State private var model: LivenessDataModel?
+    @State private var verifying = false
     var body: some View {
-        FaceLivenessDetectionView { result in
-            switch result {
-            case .success(let model):
-                debugPrint(model.liveness.rawValue)
-            case .failure(let error):
-                debugPrint(error.localizedDescription)
+        NavigationStack {
+            FaceLivenessDetectionView { result in
+                switch result {
+                case .success(let model):
+                    debugPrint(model.liveness.rawValue, "recie")
+                    self.model = model
+                    self.verifying = true
+                case .failure(let error):
+                    debugPrint(error.localizedDescription)
+                }
+            }
+            .navigationDestination(isPresented: $verifying) {
+                if let model {
+                    Text(model.liveness.rawValue)
+                    Text("\(model.confidence)")
+
+                    Image(uiImage: model.depthImage)
+                }
             }
         }
+
     }
 }
 
