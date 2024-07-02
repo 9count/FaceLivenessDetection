@@ -44,8 +44,6 @@ public struct FaceLivenessDetectionView: View {
                         verifying = false
                         onCompletion(.success(result))
                     }
-                    UIImageWriteToSavedPhotosAlbum(capturedImage, nil, nil, nil)
-                    UIImageWriteToSavedPhotosAlbum(depthImage, nil, nil, nil)
                 })
                 .onAppear {
                     viewModel.reset()
