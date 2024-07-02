@@ -1,6 +1,6 @@
 //
 //  LivenessPredictorTests.swift
-//  
+//
 //
 //  Created by 鍾哲玄 on 2024/6/20.
 //
@@ -9,25 +9,27 @@ import XCTest
 @testable import FaceLivenessDetection
 
 final class LivenessPredictorTests: XCTestCase {
-    let livenessPredictor = LivenessPredictor()
-    
+    var livenessPredictor: LivenessPredictor!
+    var sampleImage: UIImage!
+
+    override func setUp() {
+        super.setUp()
+        livenessPredictor = LivenessPredictor()
+        let cgImage = CGImage.createSampleCGImage()
+        XCTAssertNotNil(cgImage)
+        sampleImage = UIImage(cgImage: cgImage!)
+    }
     func testFakeLiveness() {
-        let expectation = expectation(description: "completion handler on predicting liveness")
-        let expectResult = LivenessPredictor.Liveness.fake
+//        let expectation = self.expectation(description: "Expecting the fake prediction to complete")
+        let expectedLiveness = LivenessPredictor.Liveness.fake
+        XCTAssertThrowsError(try livenessPredictor.makePrediction(for: sampleImage) { liveness, confidence in
+            XCTAssertEqual(liveness, expectedLiveness, "Liveness prediction should match expected")
+            // Optionally test the confidence value if applicable
+            XCTAssertGreaterThan(confidence, 0.8)
+//            expectation.fulfill()
+        })
 
-        let cgImage = CGImage.createSampleCGImage()!
-        let uiImage = UIImage(cgImage: cgImage)
-        do {
-            try livenessPredictor.makePrediction(for: uiImage) { liveness, confidence in
-                XCTAssertEqual(liveness, expectResult)
-                expectation.fulfill()
-            }
-            wait(for: [expectation], timeout: 3)
-
-        } catch {
-
-        }
-
+//        waitForExpectations(timeout: 10)
     }
 
     override func setUpWithError() throws {

@@ -24,7 +24,7 @@ public struct FaceLivenessDetectionView: View {
             FaceDetectionView(viewModel: viewModel)
                 .overlay {
                     if verifying {
-                        CountdownProgressView(2)
+                        CountdownProgressView(1.5)
                             .frame(width: 100, height: 100)
                     }
                 }
@@ -44,6 +44,8 @@ public struct FaceLivenessDetectionView: View {
                         verifying = false
                         onCompletion(.success(result))
                     }
+                    UIImageWriteToSavedPhotosAlbum(capturedImage, nil, nil, nil)
+                    UIImageWriteToSavedPhotosAlbum(depthImage, nil, nil, nil)
                 })
                 .onAppear {
                     viewModel.reset()
@@ -68,11 +70,11 @@ public struct FaceLivenessDetectionView: View {
 
 #Preview {
     FaceLivenessDetectionView { result in
-        switch result {
-            case .success(let model):
-                debugPrint(model.liveness.rawValue)
-            case .failure(let error):
-                debugPrint(error.localizedDescription)
-        }
+//        switch result {
+//            case .success(let model):
+//                debugPrint(model.liveness.rawValue)
+//            case .failure(let error):
+//                debugPrint(error.localizedDescription)
+//        }
     }
 }
