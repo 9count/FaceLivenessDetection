@@ -379,7 +379,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         guard let videoPixelBuffer else { return }
         guard
             let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
-            let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)
+            let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)?.rotateUIImage(byDegrees: 90)
         else { return }
 
         do {
