@@ -12,7 +12,6 @@ let package = Package(
             name: "FaceLivenessDetection",
             targets: ["FaceLivenessDetection"]),
     ],
-    dependencies: [.package(url: "https://github.com/realm/SwiftLint.git", exact: "0.55.0")],
     targets: [
         // Targets are the basic building blocks of a package, defining a module or a test suite.
         // Targets can depend on other targets in this package and products from dependencies.
@@ -22,8 +21,7 @@ let package = Package(
             resources: [
                 .process("Resources/"),
                 .copy("Metal/")
-            ],
-            plugins: [.plugin(name: "SwiftLintBuildToolPlugin", package: "SwiftLint")]
+            ]
         ),
         .target(name: "HistogramCalculator"),
         .testTarget(
