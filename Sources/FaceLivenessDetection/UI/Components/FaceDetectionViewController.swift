@@ -44,6 +44,8 @@ final class FaceDetectionViewController: UIViewController {
     private var frameSkipCounter = 0
     private let frameSkipThreshold = 5
 
+    private var quality: Float = 0
+
     // MARK: Initialization
     init(viewModel: FaceDetectionViewModel) {
         self.faceDetectionViewModel = viewModel
@@ -299,19 +301,32 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
         frameSkipCounter = 0  // Reset counter
         let faceLandmarksRequest = VNDetectFaceLandmarksRequest { [weak self] request, _ in
+            guard let self else { return }
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
-                    self?.analyzeFaceOrientation(face)
+                    if self.quality > 0.45 {
+                        self.analyzeFaceOrientation(face)
+                    }
                 }
             } else {
                 DispatchQueue.main.async {
-                    self?.faceDetectionViewModel.instruction = .noFace
+                    self.faceDetectionViewModel.instruction = .noFace
+                }
+            }
+        }
+
+        let detectFaceCaptureRequest = VNDetectFaceCaptureQualityRequest { [weak self] request, _ in
+            if let results = request.results as? [VNFaceObservation], !results.isEmpty {
+                for face in results {
+                    print(face.faceCaptureQuality)
+                    guard let quality = face.faceCaptureQuality else { return }
+                    self?.quality = quality
                 }
             }
         }
         let handler = VNImageRequestHandler(cvPixelBuffer: videoPixelBuffer, options: [:])
         if faceDetectionViewModel.canAnalyzeFace {
-            try? handler.perform([faceLandmarksRequest])
+            try? handler.perform([faceLandmarksRequest, detectFaceCaptureRequest])
         }
     }
 
