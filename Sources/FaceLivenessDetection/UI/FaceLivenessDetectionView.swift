@@ -40,9 +40,9 @@ public struct FaceLivenessDetectionView: View {
                         return
                     }
                     verifying = true
+                    onCompletion(.success(result))
                     DispatchQueue.main.asyncAfter(deadline: .now() + 2) {
                         verifying = false
-                        onCompletion(.success(result))
                     }
                 })
                 .onAppear {
