@@ -24,7 +24,7 @@ public struct FaceLivenessDetectionView: View {
             FaceDetectionView(viewModel: viewModel)
                 .overlay {
                     if verifying {
-                        CountdownProgressView(4)
+                        CountdownProgressView(3)
                             .frame(width: 100, height: 100)
                     }
                 }
@@ -41,7 +41,7 @@ public struct FaceLivenessDetectionView: View {
                     }
                     verifying = true
                     onCompletion(.success(result))
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 4) {
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
                         verifying = false
                     }
                 })
