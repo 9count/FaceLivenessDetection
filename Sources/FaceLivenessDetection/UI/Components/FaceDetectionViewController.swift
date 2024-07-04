@@ -117,7 +117,12 @@ final class FaceDetectionViewController: UIViewController {
         faceDetectionViewModel.$instruction
             .receive(on: RunLoop.main)
             .sink { [weak self] instructionState in
-                self?.previewLayerStatus(state: instructionState)
+                guard let self else { return }
+                var state = instructionState
+                if self.faceDetectionViewModel.captured {
+                    state = .faceFit
+                }
+                self.previewLayerStatus(state: state)
             }
             .store(in: &cancellables)
 
@@ -392,13 +397,13 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             return
         }
         guard let videoPixelBuffer else { return }
+        pauseCaptureSession()
         guard
             let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
             let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)?.rotateUIImage(byDegrees: 90)
         else { return }
 
         do {
-            pauseCaptureSession()
             try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
                 if liveness == .fake {
                     self?.resumeCaptureSession()
