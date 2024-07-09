@@ -50,9 +50,13 @@ public struct FaceLivenessDetectionView: View {
                     viewModel.setupDelayTimer()
                 }
 
-            if viewModel.instruction == .faceFit && viewModel.livenessDetected {
-                Text("Verifying")
-                    .foregroundStyle(Color(.greenExtraDark))
+            if viewModel.instruction == .faceFit {
+                let faceFitInstruction = viewModel.livenessDetected 
+                    ? "Verifying"
+                    : "Please move your face inside the camera view"
+
+                Text(faceFitInstruction)
+                    .foregroundStyle(Color(viewModel.livenessDetected ? .greenExtraDark : .redDark))
                     .font(.headline)
                     .multilineTextAlignment(.center)
                     .lineLimit(3)
