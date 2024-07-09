@@ -310,7 +310,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             guard let self else { return }
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
-                    if self.quality > 0.45 {
+                    if self.quality > 0.40 {
                         self.analyzeFaceOrientation(face)
                     }
                 }
@@ -347,7 +347,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             instruction = .faceTooFar
         } else if faceArea > 0.25 {
             instruction = .faceTooClose
-        } else if abs(yaw) > 0.10 {
+        } else if abs(yaw) > 0.08 {
             instruction = .faceFront
 //            if yaw > 0 {
 //                instruction = .faceRight
@@ -376,13 +376,14 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
                 let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)
             else { return }
             try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
+                guard let self else { return }
                 if liveness == .real && confidence > 0.5 {
                     DispatchQueue.main.async {
-                        self?.faceDetectionViewModel.livenessDetected = true
+                        self.faceDetectionViewModel.livenessDetected = true
                     }
                 } else {
                     DispatchQueue.main.async {
-                        self?.faceDetectionViewModel.livenessDetected = false
+                        self.faceDetectionViewModel.livenessDetected = false
                     }
                 }
             }
@@ -393,6 +394,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
     func captureButtonPressed() {
         print("capturebutton pressed")
+        previewLayerStatus(state: .faceFit)
         guard let jetPixelBuffer = jetView.pixelBuffer else {
             logger.debug("No pixel buffer to capture")
             return
