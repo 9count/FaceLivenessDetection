@@ -220,8 +220,9 @@ final class FaceDetectionViewController: UIViewController {
     }
 
     func previewLayerStatus(state: FaceDetectionState) {
+        let pass = state == .faceFit && faceDetectionViewModel.livenessDetected
         DispatchQueue.main.async {
-            self.jetPreviewLayer?.borderColor = state == .faceFit ? UIColor(resource: .greenExtraDark).cgColor : UIColor(resource: .redDark).cgColor
+            self.jetPreviewLayer?.borderColor = pass ? UIColor(resource: .greenExtraDark).cgColor : UIColor(resource: .redDark).cgColor
         }
     }
 
