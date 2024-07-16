@@ -15,7 +15,7 @@ struct ContentView: View {
             FaceLivenessDetectionView { result in
                 switch result {
                 case .success(let model):
-                    debugPrint(model.liveness.rawValue, "recie")
+                    debugPrint(model.liveness.rawValue, "liveness result")
                     self.model = model
                 case .failure(let error):
                     debugPrint(error.localizedDescription)

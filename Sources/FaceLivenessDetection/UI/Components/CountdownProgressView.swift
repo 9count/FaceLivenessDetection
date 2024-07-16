@@ -29,7 +29,6 @@ public struct CountdownProgressView: View {
 
     func startTimer() {
         timer?.invalidate()
-        print("Timer started")
         let increment = 0.1 / duration
         timer = Timer.scheduledTimer(withTimeInterval: 0.1, repeats: true) { tempTimer in
             self.progress += increment

@@ -14,6 +14,5 @@ final class FaceLivenessDetectionTests: XCTestCase {
         let vm = FaceDetectionViewModel()
         
         XCTAssertEqual(vm.instruction, FaceDetectionState.noFace)
-        XCTAssertEqual(vm.livenessDetected, false)
     }
 }

@@ -15,7 +15,6 @@ public struct InstructionView: View {
     }
 
     public var body: some View {
-        // Fix: don't know why adding this code causes ui update problem
         Text(instruction.rawValue)
             .foregroundStyle(instruction == .faceFit ? Color(.greenExtraDark) : Color(.redDark))
             .font(.headline)

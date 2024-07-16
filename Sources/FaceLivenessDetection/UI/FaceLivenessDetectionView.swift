@@ -10,21 +10,24 @@ import SwiftUI
 
 public struct FaceLivenessDetectionView: View {
     @StateObject private var viewModel = FaceDetectionViewModel()
-    @State private var verifying = false
 
-    var onCompletion: (Result<LivenessDataModel, Error>) -> Void
-    // for debug
+    public typealias CompletionHandler = (Result<LivenessDataModel, LivenessDetectionError>) -> Void
+    var timeInterval: TimeInterval
+    var onCompletion: CompletionHandler
 
-    public init(onCompletion: @escaping (Result<LivenessDataModel, Error>) -> Void) {
+    public init(
+        timeInterval: TimeInterval = 3,
+        onCompletion: @escaping CompletionHandler) {
         self.onCompletion = onCompletion
+        self.timeInterval = timeInterval
     }
 
     public var body: some View {
         VStack {
             FaceDetectionView(viewModel: viewModel)
                 .overlay {
-                    if verifying {
-                        CountdownProgressView(3)
+                    if viewModel.showProgress {
+                        CountdownProgressView(timeInterval)
                             .frame(width: 100, height: 100)
                     }
                 }
@@ -34,49 +37,38 @@ public struct FaceLivenessDetectionView: View {
                     }
                 })
                 .onReceive(viewModel.$predictionResult, perform: { result in
-                    guard let capturedImage = result?.capturedImage, let depthImage = result?.depthImage else { return }
                     guard let result else {
-                        onCompletion(.failure(LivenessPredictionError.predictionError))
                         return
                     }
-                    verifying = true
+
                     onCompletion(.success(result))
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
-                        verifying = false
-                    }
+                    resetDetection()
                 })
                 .onAppear {
-                    viewModel.reset()
-                    viewModel.setupDelayTimer()
+                    resetDetection()
                 }
 
-            if viewModel.instruction == .faceFit {
-                let faceFitInstruction = viewModel.livenessDetected 
-                    ? "Verifying"
-                    : "Please move your face inside the camera view"
-
-                Text(faceFitInstruction)
-                    .foregroundStyle(Color(viewModel.livenessDetected ? .greenExtraDark : .redDark))
-                    .font(.headline)
-                    .multilineTextAlignment(.center)
-                    .lineLimit(3)
-                    .frame(maxWidth: .infinity)
-            } else {
-                InstructionView(instruction: viewModel.instruction)
-            }
+            InstructionView(instruction: viewModel.instruction)
 
             Spacer()
+        }
+    }
+
+    private func resetDetection() {
+        DispatchQueue.main.asyncAfter(deadline: .now() + timeInterval) {
+            viewModel.reset()
+            viewModel.setupDelayTimer()
         }
     }
 }
 
 #Preview {
     FaceLivenessDetectionView { result in
-//        switch result {
-//            case .success(let model):
-//                debugPrint(model.liveness.rawValue)
-//            case .failure(let error):
-//                debugPrint(error.localizedDescription)
-//        }
+        switch result {
+            case .success(let model):
+                debugPrint(model.liveness.rawValue)
+            case .failure(let error):
+                debugPrint(error.localizedDescription)
+        }
     }
 }
