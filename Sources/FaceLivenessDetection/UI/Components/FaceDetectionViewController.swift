@@ -357,12 +357,6 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         } else {
             analyzeFaceLiveness()
         }
-
-        // prevent view from frequently rerendering
-//        guard instruction != faceDetectionViewModel.instruction else { return }
-//        DispatchQueue.main.async {
-//            self.faceDetectionViewModel.instruction = instruction
-//        }
     }
 
     func analyzeFaceLiveness() {
