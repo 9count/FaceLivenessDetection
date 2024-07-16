@@ -19,7 +19,6 @@ public struct InstructionView: View {
             .foregroundStyle(instruction == .faceFit ? Color(.greenExtraDark) : Color(.redDark))
             .font(.headline)
             .multilineTextAlignment(.center)
-            .lineLimit(3)
             .frame(maxWidth: .infinity)
     }
 }

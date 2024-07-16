@@ -17,7 +17,8 @@ public struct FaceDetectionView: View {
 
     public var body: some View {
         FaceDetectionViewControllerSwiftUI(faceDetectionViewModel: detectionViewModel)
-            .frame(maxWidth: .infinity, maxHeight: 400)
+            .frame(maxWidth: .infinity)
+            .frame(height: 400)
     }
 }
 
