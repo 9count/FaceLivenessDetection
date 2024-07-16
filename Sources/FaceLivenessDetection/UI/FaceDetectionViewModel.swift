@@ -9,46 +9,36 @@ import Foundation
 import Combine
 
 public final class FaceDetectionViewModel: ObservableObject {
-    @Published public var instruction: FaceDetectionState = .noFace
-    @Published public var livenessDetected = false
+    @Published public var instruction: FaceDetectionState = .noFace {
+        didSet {
+            if instruction == .faceFit {
+                showProgress = true
+                captureImagePublisher.send()
+            }
+        }
+    }
+
     @Published var predictionResult: LivenessDataModel?
     @Published var hidePreviewLayer = false
     @Published var lowLightEnvironment = false
-    @Published var captured = false
     @Published var canAnalyzeFace = false
+    @Published var showProgress = false
 
     let captureImagePublisher = PassthroughSubject<Void, Never>()
-    var countDownPublisher: AnyCancellable?
+    let resumeSessionPublisher = PassthroughSubject<Void, Never>()
     private var cancellables = Set<AnyCancellable>()
-
-    public init() {
-        setupPublishers()
-    }
-
-    private func setupPublishers() {
-        Publishers.CombineLatest3($instruction, $livenessDetected, $captured)
-            .receive(on: RunLoop.main)
-            .filter { instruction, livenessDetected, captured in
-                return instruction == .faceFit && livenessDetected && !captured
-            }
-            .sink { [weak self] _ in
-                self?.captureImagePublisher.send()
-                self?.captured = true
-            }
-            .store(in: &cancellables)
-    }
 
     public func reset() {
         instruction = .noFace
-        livenessDetected = false
         predictionResult = nil
-        captured = false
         canAnalyzeFace = false
+        showProgress = false
     }
 
     public func setupDelayTimer() {
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.canAnalyzeFace = true
+            self.resumeSessionPublisher.send()
         }
     }
 }

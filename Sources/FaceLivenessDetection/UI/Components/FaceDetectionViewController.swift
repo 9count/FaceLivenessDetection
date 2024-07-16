@@ -119,16 +119,20 @@ final class FaceDetectionViewController: UIViewController {
             .sink { [weak self] instructionState in
                 guard let self else { return }
                 var state = instructionState
-                if self.faceDetectionViewModel.captured {
-                    state = .faceFit
-                }
+
                 self.previewLayerStatus(state: state)
             }
             .store(in: &cancellables)
 
         faceDetectionViewModel.captureImagePublisher
             .sink { _ in
-                self.captureButtonPressed()
+                self.captureLivenessImage()
+            }
+            .store(in: &cancellables)
+
+        faceDetectionViewModel.resumeSessionPublisher
+            .sink { _ in
+                self.resumeCaptureSession()
             }
             .store(in: &cancellables)
     }
@@ -220,7 +224,7 @@ final class FaceDetectionViewController: UIViewController {
     }
 
     func previewLayerStatus(state: FaceDetectionState) {
-        let pass = state == .faceFit && faceDetectionViewModel.livenessDetected
+        let pass = state == .faceFit
         DispatchQueue.main.async {
             self.jetPreviewLayer?.borderColor = pass ? UIColor(resource: .greenExtraDark).cgColor : UIColor(resource: .redDark).cgColor
         }
@@ -296,10 +300,6 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
         self.jetView.pixelBuffer = jetPixelBuffer
 
-        if faceDetectionViewModel.instruction == .faceFit {
-            analyzeFaceLiveness(jetPixelBuffer)
-        }
-
         guard frameSkipCounter >= frameSkipThreshold else {
             frameSkipCounter += 1
             return
@@ -324,13 +324,13 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         let detectFaceCaptureRequest = VNDetectFaceCaptureQualityRequest { [weak self] request, _ in
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
-                    print(face.faceCaptureQuality)
                     guard let quality = face.faceCaptureQuality else { return }
                     self?.quality = quality
                 }
             }
         }
         let handler = VNImageRequestHandler(cvPixelBuffer: videoPixelBuffer, options: [:])
+
         if faceDetectionViewModel.canAnalyzeFace {
             try? handler.perform([faceLandmarksRequest, detectFaceCaptureRequest])
         }
@@ -342,29 +342,30 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         let faceBoundingBox = face.boundingBox
         let faceArea = faceBoundingBox.width * faceBoundingBox.height
 
-        var instruction: FaceDetectionState
         if faceArea < 0.15 {
-            instruction = .faceTooFar
+            DispatchQueue.main.async {
+                self.faceDetectionViewModel.instruction = .faceTooFar
+            }
         } else if faceArea > 0.25 {
-            instruction = .faceTooClose
+            DispatchQueue.main.async {
+                self.faceDetectionViewModel.instruction = .faceTooClose
+            }
         } else if abs(yaw) > 0.08 {
-            instruction = .faceFront
-//            if yaw > 0 {
-//                instruction = .faceRight
-//            } else {
-//                instruction = .faceLeft
-//            }
+            DispatchQueue.main.async {
+                self.faceDetectionViewModel.instruction = .faceFront
+            }
         } else {
-            instruction = .faceFit
+            analyzeFaceLiveness()
         }
 
-        guard instruction != faceDetectionViewModel.instruction else { return }
-        DispatchQueue.main.async {
-            self.faceDetectionViewModel.instruction = instruction
-        }
+        // prevent view from frequently rerendering
+//        guard instruction != faceDetectionViewModel.instruction else { return }
+//        DispatchQueue.main.async {
+//            self.faceDetectionViewModel.instruction = instruction
+//        }
     }
 
-    func analyzeFaceLiveness(_ pixelBuffer: CVPixelBuffer) {
+    func analyzeFaceLiveness() {
         do {
             guard let jetPixelBuffer = jetView.pixelBuffer else {
                 logger.debug("No pixel buffer to capture")
@@ -375,15 +376,16 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
                 let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
                 let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)
             else { return }
+
             try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
                 guard let self else { return }
-                if liveness == .real && confidence > 0.5 {
+                if liveness == .real && confidence > 0.4 {
                     DispatchQueue.main.async {
-                        self.faceDetectionViewModel.livenessDetected = true
+                        self.faceDetectionViewModel.instruction = .faceFit
                     }
                 } else {
                     DispatchQueue.main.async {
-                        self.faceDetectionViewModel.livenessDetected = false
+                        self.faceDetectionViewModel.instruction = .noFace
                     }
                 }
             }
@@ -392,9 +394,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         }
     }
 
-    func captureButtonPressed() {
-        print("capturebutton pressed")
-        previewLayerStatus(state: .faceFit)
+    func captureLivenessImage() {
         guard let jetPixelBuffer = jetView.pixelBuffer else {
             logger.debug("No pixel buffer to capture")
             return
@@ -439,6 +439,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
     }
 }
 
+// MARK: SwiftUI Bridging
 struct FaceDetectionViewControllerSwiftUI: UIViewControllerRepresentable {
     @ObservedObject var faceDetectionViewModel: FaceDetectionViewModel
 
