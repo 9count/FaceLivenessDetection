@@ -13,6 +13,34 @@ FaceLivenessDetection is a Swift package that provides a framework for detecting
 
 [![Liveness Demo](https://github.com/9count/FaceLivenessDetection/assets/82346532/b05c7c44-ff84-4511-bd31-2ca606d060eb)](https://github.com/9count/FaceLivenessDetection/assets/82346532/7fdf3f4e-6d74-4f57-a333-2bf614512ade)
 
+## Usage
+
+```swift
+struct ContentView: View {
+    var body: some View {
+        // Embedding the FaceLivenessDetectionView inside a your view.
+
+        FaceLivenessDetectionView(
+            timeInterval: 3, // Set the time interval for the fake progress UI.
+            onCompletion: handleCompletion // Your completion handler to process the result.
+        )
+    }
+
+    /// Handles the completion of the liveness detection.
+    /// - Parameter result: The result of the liveness detection, either successful with data or a failure with an error.
+    func handleCompletion(result: Result<LivenessDataModel, LivenessDetectionError>) {
+        switch result {
+        case .success(let dataModel):
+            print("Detection successful: \(dataModel)")
+            // Handle success case, update UI or data model accordingly.
+        case .failure(let error):
+            print("Detection failed with error: \(error)")
+            // Handle error, show alert or error message to the user.
+        }
+    }
+}
+```
+
 ## Requirements
 
 - iOS 15.0+

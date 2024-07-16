@@ -8,13 +8,27 @@
 import Combine
 import SwiftUI
 
+///
+/// This view integrates with `FaceDetectionViewModel` to manage the detection process
+/// and provides feedback on the detection state through a series of subviews including
+/// a countdown timer and instructional text.
 public struct FaceLivenessDetectionView: View {
     @StateObject private var viewModel = FaceDetectionViewModel()
 
+    /// Typealias for the completion handler to manage success and failure.
     public typealias CompletionHandler = (Result<LivenessDataModel, LivenessDetectionError>) -> Void
+
+    /// The time interval for the fake verifying loading progress UI.
     var timeInterval: TimeInterval
+
+    /// Completion handler to be called with the result of the liveness detection.
     var onCompletion: CompletionHandler
 
+    /// Initializes a new instance of the face liveness detection view.
+    ///
+    /// - Parameters:
+    ///   - timeInterval: The time interval for the fake verifying loading progress UI (default is 3 seconds).
+    ///   - onCompletion: The completion handler to call with the detection result.
     public init(
         timeInterval: TimeInterval = 3,
         onCompletion: @escaping CompletionHandler) {
@@ -54,6 +68,7 @@ public struct FaceLivenessDetectionView: View {
         }
     }
 
+    /// Resets the detection process after a specified time interval and prepares for a new detection cycle.
     private func resetDetection() {
         DispatchQueue.main.asyncAfter(deadline: .now() + timeInterval) {
             viewModel.reset()
