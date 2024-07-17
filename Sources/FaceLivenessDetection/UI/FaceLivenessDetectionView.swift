@@ -56,10 +56,10 @@ public struct FaceLivenessDetectionView: View {
                     }
 
                     onCompletion(.success(result))
-                    resetDetection()
+                    resetDetectionFlow()
                 })
                 .onAppear {
-                    resetDetection()
+                    viewModel.setupDelayTimer()
                 }
 
             InstructionView(instruction: viewModel.instruction)
@@ -69,7 +69,7 @@ public struct FaceLivenessDetectionView: View {
     }
 
     /// Resets the detection process after a specified time interval and prepares for a new detection cycle.
-    private func resetDetection() {
+    private func resetDetectionFlow() {
         DispatchQueue.main.asyncAfter(deadline: .now() + timeInterval) {
             viewModel.reset()
             viewModel.setupDelayTimer()

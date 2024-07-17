@@ -42,7 +42,7 @@ final class FaceDetectionViewController: UIViewController {
     private var videoPixelBuffer: CVPixelBuffer?
 
     private var frameSkipCounter = 0
-    private let frameSkipThreshold = 5
+    private let frameSkipThreshold = 30
 
     private var quality: Float = 0
 
@@ -375,6 +375,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
                 guard let self else { return }
                 if liveness == .real && confidence > 0.4 {
                     DispatchQueue.main.async {
+                        self.pauseCaptureSession()
                         self.faceDetectionViewModel.instruction = .faceFit
                     }
                 } else {
@@ -394,7 +395,6 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             return
         }
         guard let videoPixelBuffer else { return }
-        pauseCaptureSession()
         guard
             let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
             let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)?.rotateUIImage(byDegrees: 90)
@@ -422,13 +422,22 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
     func pauseCaptureSession() {
         sessionQueue.async {
-            self.captureSession.stopRunning()
+            if self.captureSession.isRunning {
+                self.captureSession.stopRunning()
+                if let connection = self.jetPreviewLayer?.connection {
+                    connection.isEnabled = false
+                }
+            }
         }
     }
 
     func resumeCaptureSession() {
         sessionQueue.async {
+            if self.captureSession.isRunning { return }
             self.captureSession.startRunning()
+            if let connection = self.jetPreviewLayer?.connection {
+                connection.isEnabled = true
+            }
         }
     }
 }
