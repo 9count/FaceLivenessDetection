@@ -40,9 +40,10 @@ final class FaceDetectionViewController: UIViewController {
     private let videoDepthMixer = VideoMixer()
     private let livenessPredictor = LivenessPredictor()
     private var videoPixelBuffer: CVPixelBuffer?
+    private var jetPixelBuffer: CVPixelBuffer?
 
     private var frameSkipCounter = 0
-    private let frameSkipThreshold = 30
+    private let frameSkipThreshold = 15
 
     private var quality: Float = 0
 
@@ -176,6 +177,9 @@ final class FaceDetectionViewController: UIViewController {
             videoDataOutput.videoSettings = [
                 kCVPixelBufferPixelFormatTypeKey as String: Int(kCVPixelFormatType_32BGRA)
             ]
+            if let connection = videoDataOutput.connection(with: .video) {
+                connection.isEnabled = true
+            }
 
             logger.info("output setted success")
         } else {
@@ -209,6 +213,9 @@ final class FaceDetectionViewController: UIViewController {
 
     func setupPreviewLayer() {
         let previewLayer = AVCaptureVideoPreviewLayer(session: captureSession)
+        if let connection = previewLayer.connection {
+            connection.isEnabled = true
+        }
         self.jetPreviewLayer = previewLayer
         previewLayer.videoGravity = .resizeAspectFill
         previewLayer.frame = jetView.bounds
@@ -298,7 +305,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             let _ = videoDepthMixer.mix(videoPixelBuffer: videoPixelBuffer, depthPixelBuffer: jetPixelBuffer)
         else { return }
 
-        self.jetView.pixelBuffer = jetPixelBuffer
+        self.jetPixelBuffer = jetPixelBuffer
 
         guard frameSkipCounter >= frameSkipThreshold else {
             frameSkipCounter += 1
@@ -361,7 +368,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
 
     func analyzeFaceLiveness() {
         do {
-            guard let jetPixelBuffer = jetView.pixelBuffer else {
+            guard let jetPixelBuffer else {
                 logger.debug("No pixel buffer to capture")
                 return
             }
@@ -390,7 +397,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
     }
 
     func captureLivenessImage() {
-        guard let jetPixelBuffer = jetView.pixelBuffer else {
+        guard let jetPixelBuffer else {
             logger.debug("No pixel buffer to capture")
             return
         }
