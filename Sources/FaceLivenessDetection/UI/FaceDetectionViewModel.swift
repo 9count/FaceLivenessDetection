@@ -10,11 +10,13 @@ import Combine
 
 public final class FaceDetectionViewModel: ObservableObject {
     /// Current state of face detection, indicating if a face is present or not.
+    /// When this property is set, it pauses the capture session & shows the fake progress view.
     @Published public var instruction: FaceDetectionState = .noFace {
         didSet {
             if instruction == .faceFit {
-                showProgress = true
+                canAnalyzeFace = false
                 captureImagePublisher.send()
+                showProgress = true
             }
         }
     }
@@ -51,9 +53,9 @@ public final class FaceDetectionViewModel: ObservableObject {
 
     /// Sets up a delay timer after which the face can be analyzed.
     public func setupDelayTimer() {
+        self.resumeSessionPublisher.send()
         DispatchQueue.main.asyncAfter(deadline: .now() + 1.5) {
             self.canAnalyzeFace = true
-            self.resumeSessionPublisher.send()
         }
     }
 }
