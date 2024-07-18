@@ -317,7 +317,8 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             guard let self else { return }
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
-                    if self.quality > 0.40 {
+                    // if quality threshold setted too high will affect low light environment detection
+                    if self.quality > 0.20 {
                         self.analyzeFaceOrientation(face)
                     }
                 }
