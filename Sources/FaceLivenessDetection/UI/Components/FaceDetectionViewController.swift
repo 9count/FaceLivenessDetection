@@ -62,6 +62,7 @@ final class FaceDetectionViewController: UIViewController {
         super.viewDidLoad()
         drawCircleView()
         setupBindings()
+        setupSessionInterruptionNotifications()
 
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -136,6 +137,20 @@ final class FaceDetectionViewController: UIViewController {
                 self.resumeCaptureSession()
             }
             .store(in: &cancellables)
+    }
+
+    func setupSessionInterruptionNotifications() {
+        NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: .AVCaptureSessionWasInterrupted, object: captureSession)
+
+        NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterruptedEnded), name: .AVCaptureSessionInterruptionEnded, object: captureSession)
+    }
+
+    @objc func sessionWasInterrupted(notification: Notification) {
+        pauseCaptureSession()
+    }
+
+    @objc func sessionWasInterruptedEnded(notification: Notification) {
+        resumeCaptureSession()
     }
 
     private func hidePreviewLayer(_ shouldHide: Bool) {
@@ -317,7 +332,8 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             guard let self else { return }
             if let results = request.results as? [VNFaceObservation], !results.isEmpty {
                 for face in results {
-                    if self.quality > 0.40 {
+                    // if quality threshold setted too high will affect low light environment detection
+                    if self.quality > 0.20 {
                         self.analyzeFaceOrientation(face)
                     }
                 }
