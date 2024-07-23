@@ -20,7 +20,7 @@ final class FaceDetectionViewController: UIViewController {
     // MARK: UI related properties
     private var jetPreviewLayer: AVCaptureVideoPreviewLayer?
     private var jetView: PreviewMetalView!
-    private var circleRect: CGRect = .init(x: 0, y: 0, width: 250, height: 250)
+    private var circleRect: CGRect = .init(x: 0, y: 0, width: 240, height: 300)
 
     // MARK: Custom queues
     private let sessionQueue = DispatchQueue(label: "com.FaceLivenessDetection.session")
@@ -63,6 +63,7 @@ final class FaceDetectionViewController: UIViewController {
         drawCircleView()
         setupBindings()
         setupSessionInterruptionNotifications()
+        setupPreviewLayer()
 
         switch AVCaptureDevice.authorizationStatus(for: .video) {
         case .authorized:
@@ -84,27 +85,12 @@ final class FaceDetectionViewController: UIViewController {
 
     override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
-        setupPreviewLayer()
         updateJetView()
     }
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
-        let interfaceOrientation = UIApplication.shared.statusBarOrientation
-
-        sessionQueue.async {
-            let videoOrientation = self.videoDataOutput.connection(with: .video)!.videoOrientation
-            let videoDevicePosition = self.videoDeviceInput.device.position
-            let rotation = PreviewMetalView.Rotation(with: interfaceOrientation,
-                                                     videoOrientation: videoOrientation,
-                                                     cameraPosition: videoDevicePosition)
-            self.jetView.mirroring = (videoDevicePosition == .front)
-            if let rotation {
-                self.jetView.rotation = rotation
-            }
-
-            self.captureSession.startRunning()
-        }
+        resumeCaptureSession()
     }
 
     // MARK: Private funcs
@@ -233,8 +219,8 @@ final class FaceDetectionViewController: UIViewController {
         }
         self.jetPreviewLayer = previewLayer
         previewLayer.videoGravity = .resizeAspectFill
-        previewLayer.frame = jetView.bounds
-        previewLayer.cornerRadius = jetView.bounds.width / 2
+        previewLayer.frame = circleRect
+        previewLayer.cornerRadius = circleRect.width / 2
         previewLayer.borderColor = UIColor(resource: .redDark).cgColor
         previewLayer.borderWidth = 2
         jetView.layer.addSublayer(previewLayer)
@@ -256,9 +242,7 @@ final class FaceDetectionViewController: UIViewController {
         jetView = PreviewMetalView(frame: circleRect, device: MTLCreateSystemDefaultDevice())
         jetView.translatesAutoresizingMaskIntoConstraints = false
         self.view.addSubview(jetView)
-        let screenWidth = view.bounds.width
-        let rect = CGRect(x: 0, y: 0, width: screenWidth * 0.64, height: screenWidth * 0.8)
-        self.circleRect = rect
+
         // Set constraints
         NSLayoutConstraint.activate([
             jetView.centerXAnchor.constraint(equalTo: view.centerXAnchor),
