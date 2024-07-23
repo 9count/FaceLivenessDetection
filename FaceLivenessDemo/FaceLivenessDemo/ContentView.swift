@@ -11,7 +11,7 @@ import FaceLivenessDetection
 struct ContentView: View {
     @State private var model: LivenessDataModel?
     var body: some View {
-        NavigationStack {
+        NavigationView {
             FaceLivenessDetectionView { result in
                 switch result {
                 case .success(let model):
