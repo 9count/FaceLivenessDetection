@@ -21,6 +21,9 @@ public struct FaceLivenessDetectionView: View {
     /// The time interval for the fake verifying loading progress UI.
     var timeInterval: TimeInterval
 
+    /// Completion handler to be called when face is first detected during the current session.
+    var onFaceDetectedCompletion: CompletionHandler?
+
     /// Completion handler to be called with the result of the liveness detection.
     var onCompletion: CompletionHandler
 
@@ -31,7 +34,9 @@ public struct FaceLivenessDetectionView: View {
     ///   - onCompletion: The completion handler to call with the detection result.
     public init(
         timeInterval: TimeInterval = 3,
+        onFaceDetectedCompletion: CompletionHandler? = nil,
         onCompletion: @escaping CompletionHandler) {
+        self.onFaceDetectedCompletion = onFaceDetectedCompletion
         self.onCompletion = onCompletion
         self.timeInterval = timeInterval
     }
@@ -50,11 +55,12 @@ public struct FaceLivenessDetectionView: View {
                         UIScreen.main.brightness = 1.0
                     }
                 })
+                .onReceive(viewModel.$faceDetectedResult) { result in
+                    guard let result else { return }
+                    onFaceDetectedCompletion?(.success(result))
+                }
                 .onReceive(viewModel.$predictionResult, perform: { result in
-                    guard let result else {
-                        return
-                    }
-
+                    guard let result else { return }
                     onCompletion(.success(result))
                     resetDetectionFlow()
                 })

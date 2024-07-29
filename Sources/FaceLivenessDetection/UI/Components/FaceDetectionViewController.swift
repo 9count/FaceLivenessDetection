@@ -362,6 +362,9 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
                 self.faceDetectionViewModel.instruction = .faceFront
             }
         } else {
+            if faceDetectionViewModel.faceDetectedResult == nil {
+                captureFaceImage()
+            }
             analyzeFaceLiveness()
         }
     }
@@ -396,34 +399,46 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
         }
     }
 
-    func captureLivenessImage() {
-        guard let jetPixelBuffer else {
-            logger.debug("No pixel buffer to capture")
+    func processImagesAndPredictLiveness(jetPixelBuffer: CVPixelBuffer?, videoPixelBuffer: CVPixelBuffer?, completion: @escaping (LivenessDataModel) -> Void) {
+        guard let jetPixelBuffer = jetPixelBuffer,
+                let videoPixelBuffer = videoPixelBuffer,
+              let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
+              let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)?.rotateUIImage(byDegrees: 90) else {
+            logger.debug("Invalid pixel buffers or image conversion failed")
             return
         }
-        guard let videoPixelBuffer else { return }
-        guard
-            let depthUiImage = UIImage(pixelBuffer: jetPixelBuffer),
-            let capturedImage = UIImage(pixelBuffer: videoPixelBuffer)?.rotateUIImage(byDegrees: 90)
-        else { return }
 
         do {
             try self.livenessPredictor.makePrediction(for: depthUiImage) { [weak self] liveness, confidence in
-                if liveness == .fake {
-                    self?.resumeCaptureSession()
-                } else {
-                    DispatchQueue.main.async {
-                        let dataModel = LivenessDataModel(
-                            liveness: liveness,
-                            confidence: confidence,
-                            depthImage: depthUiImage,
-                            capturedImage: capturedImage)
-                        self?.faceDetectionViewModel.predictionResult = dataModel
-                    }
+                let dataModel = LivenessDataModel(
+                    liveness: liveness,
+                    confidence: confidence,
+                    depthImage: depthUiImage,
+                    capturedImage: capturedImage)
+                DispatchQueue.main.async {
+                    completion(dataModel)
                 }
             }
         } catch {
-            logger.debug("predictor failure")
+            logger.debug("Predictor failure: \(error)")
+        }
+    }
+
+    func captureLivenessImage() {
+        processImagesAndPredictLiveness(jetPixelBuffer: jetPixelBuffer, videoPixelBuffer: videoPixelBuffer) { [weak self] livenessDataModel in
+            if livenessDataModel.liveness == .fake {
+                self?.resumeCaptureSession()
+            } else {
+                DispatchQueue.main.async {
+                    self?.faceDetectionViewModel.predictionResult = livenessDataModel
+                }
+            }
+        }
+    }
+
+    func captureFaceImage() {
+        processImagesAndPredictLiveness(jetPixelBuffer: jetPixelBuffer, videoPixelBuffer: videoPixelBuffer) { [weak self] livenessDataModel in
+            self?.faceDetectionViewModel.faceDetectedResult = livenessDataModel
         }
     }
 
