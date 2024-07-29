@@ -21,6 +21,6 @@ public enum FaceDetectionState: String {
     case noFace = "Please move your face inside the camera view"
     case faceTooFar = "Please move closer"
     case faceTooClose = "Please move farther"
-    case faceFit = "Verifying"
+    case faceFit = "Perfect!"
     case faceFront = "Please turn your face toward the camera"
 }
