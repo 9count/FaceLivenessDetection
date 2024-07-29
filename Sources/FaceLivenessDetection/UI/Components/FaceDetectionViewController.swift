@@ -129,6 +129,9 @@ final class FaceDetectionViewController: UIViewController {
         NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: .AVCaptureSessionWasInterrupted, object: captureSession)
 
         NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterruptedEnded), name: .AVCaptureSessionInterruptionEnded, object: captureSession)
+
+        NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterrupted), name: UIApplication.didEnterBackgroundNotification, object: nil)
+        NotificationCenter.default.addObserver(self, selector: #selector(sessionWasInterruptedEnded), name: UIApplication.didBecomeActiveNotification, object: nil)
     }
 
     @objc func sessionWasInterrupted(notification: Notification) {
