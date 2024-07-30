@@ -90,6 +90,10 @@ final class FaceDetectionViewController: UIViewController {
 
     override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
+        sessionQueue.async { [weak self] in
+            guard let self else { return }
+            self.configureCaptureSession()
+        }
         resumeCaptureSession()
     }
 
