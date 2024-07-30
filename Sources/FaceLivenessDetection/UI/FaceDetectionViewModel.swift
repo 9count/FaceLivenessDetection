@@ -21,6 +21,9 @@ public final class FaceDetectionViewModel: ObservableObject {
         }
     }
 
+    /// Stores the face detected liveness results from the liveness detection model.
+    @Published public var faceDetectedResult: LivenessDataModel?
+
     /// Stores the prediction results from the liveness detection model.
     @Published public var predictionResult: LivenessDataModel?
     /// Controls the visibility of the camera preview layer. (For Debug)
@@ -47,6 +50,7 @@ public final class FaceDetectionViewModel: ObservableObject {
     public func reset() {
         instruction = .noFace
         predictionResult = nil
+        faceDetectedResult = nil
         canAnalyzeFace = false
         showProgress = false
     }
