@@ -410,7 +410,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
                 }
             }
         } catch {
-            logger.debug("predictor failure")
+            faceDetectionViewModel.livenessDetectionError = .predictionError
         }
     }
 
@@ -435,7 +435,7 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
                 }
             }
         } catch {
-            logger.debug("Predictor failure: \(error)")
+            faceDetectionViewModel.livenessDetectionError = .predictionError
         }
     }
 

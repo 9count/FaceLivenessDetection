@@ -26,6 +26,9 @@ public final class FaceDetectionViewModel: ObservableObject {
 
     /// Stores the prediction results from the liveness detection model.
     @Published public var predictionResult: LivenessDataModel?
+
+    @Published public var livenessDetectionError: LivenessDetectionError?
+
     /// Controls the visibility of the camera preview layer. (For Debug)
     @Published var hidePreviewLayer = false
 

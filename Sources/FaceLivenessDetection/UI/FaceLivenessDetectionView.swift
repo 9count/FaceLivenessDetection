@@ -50,26 +50,25 @@ public struct FaceLivenessDetectionView: View {
                             .frame(width: 100, height: 100)
                     }
                 }
-                .onChange(of: viewModel.lowLightEnvironment, perform: { value in
+                .onChange(of: viewModel.lowLightEnvironment) { value in
                     if value {
                         UIScreen.main.brightness = 1.0
                     }
-                })
+                }
                 .onReceive(viewModel.$faceDetectedResult) { result in
-                    guard let result else { 
-                        onCompletion(.failure(.livenessDataModelIsNil))
-                        return
-                    }
+                    guard let result else { return }
                     onFaceDetectedCompletion?(.success(result))
                 }
-                .onReceive(viewModel.$predictionResult, perform: { result in
-                    guard let result else {
-                        onCompletion(.failure(.livenessDataModelIsNil))
-                        return
-                    }
+                .onReceive(viewModel.$predictionResult) { result in
+                    guard let result else { return }
                     onCompletion(.success(result))
                     resetDetectionFlow()
-                })
+                }
+                .onReceive(viewModel.$livenessDetectionError) { error in
+                    if let error {
+                        onCompletion(.failure(error))
+                    }
+                }
                 .onAppear {
                     viewModel.setupDelayTimer()
                 }
