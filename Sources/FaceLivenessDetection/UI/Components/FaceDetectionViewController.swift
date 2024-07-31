@@ -28,6 +28,10 @@ final class FaceDetectionViewController: UIViewController {
     private let visionQueue = DispatchQueue(label: ".com.FaceLivenessDetection.vistion")
 
     // MARK: Capture session setup
+    private var isSessionConfigured = false
+    private var isSessionIOSetted: Bool {
+        !captureSession.inputs.isEmpty && !captureSession.outputs.isEmpty
+    }
     private var captureSession = AVCaptureSession()
     private var videoDevice = AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
     private var videoDeviceInput: AVCaptureDeviceInput!
@@ -92,7 +96,10 @@ final class FaceDetectionViewController: UIViewController {
         super.viewWillAppear(animated)
         sessionQueue.async { [weak self] in
             guard let self else { return }
-            self.configureCaptureSession()
+
+            if !isSessionConfigured || !isSessionIOSetted {
+                configureCaptureSession()
+            }
         }
         resumeCaptureSession()
     }
@@ -216,6 +223,7 @@ final class FaceDetectionViewController: UIViewController {
 
         outputSynchronizer = AVCaptureDataOutputSynchronizer(dataOutputs: [videoDataOutput, depthDataOutput])
         outputSynchronizer!.setDelegate(self, queue: videoQueue)
+        isSessionConfigured = true
         captureSession.commitConfiguration()
     }
 
