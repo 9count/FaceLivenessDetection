@@ -49,5 +49,6 @@ public struct LivenessDataModel {
 
 public enum LivenessDetectionError: Error {
     case predictionError
+    case livenessDataModelIsNil
     case captureImageMissingError
 }

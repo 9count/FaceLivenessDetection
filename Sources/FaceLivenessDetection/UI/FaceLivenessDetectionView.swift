@@ -56,11 +56,17 @@ public struct FaceLivenessDetectionView: View {
                     }
                 })
                 .onReceive(viewModel.$faceDetectedResult) { result in
-                    guard let result else { return }
+                    guard let result else { 
+                        onCompletion(.failure(.livenessDataModelIsNil))
+                        return
+                    }
                     onFaceDetectedCompletion?(.success(result))
                 }
                 .onReceive(viewModel.$predictionResult, perform: { result in
-                    guard let result else { return }
+                    guard let result else {
+                        onCompletion(.failure(.livenessDataModelIsNil))
+                        return
+                    }
                     onCompletion(.success(result))
                     resetDetectionFlow()
                 })
