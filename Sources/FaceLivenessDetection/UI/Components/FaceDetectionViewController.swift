@@ -13,7 +13,7 @@ import UIKit
 import VideoToolbox
 import Vision
 
-final class FaceDetectionViewController: UIViewController {
+public final class FaceDetectionViewController: UIViewController {
     var faceDetectionViewModel: FaceDetectionViewModel
     private var cancellables = Set<AnyCancellable>()
 
@@ -32,7 +32,7 @@ final class FaceDetectionViewController: UIViewController {
     private var isSessionIOSetted: Bool {
         !captureSession.inputs.isEmpty && !captureSession.outputs.isEmpty
     }
-    private var captureSession = AVCaptureSession()
+    public private(set) var captureSession = AVCaptureSession()
     private var videoDevice = AVCaptureDevice.default(.builtInTrueDepthCamera, for: .video, position: .front)
     private var videoDeviceInput: AVCaptureDeviceInput!
     private let depthDataOutput = AVCaptureDepthDataOutput()
@@ -62,7 +62,7 @@ final class FaceDetectionViewController: UIViewController {
     }
 
     // MARK: Lifecycles
-    override func viewDidLoad() {
+    public override func viewDidLoad() {
         super.viewDidLoad()
         drawCircleView()
         setupBindings()
@@ -82,17 +82,15 @@ final class FaceDetectionViewController: UIViewController {
             break
         }
 
-        sessionQueue.async {
-            self.configureCaptureSession()
-        }
+        setupCaptureSession()
     }
 
-    override func viewDidLayoutSubviews() {
+    public override func viewDidLayoutSubviews() {
         super.viewDidLayoutSubviews()
         updateJetView()
     }
 
-    override func viewWillAppear(_ animated: Bool) {
+    public override func viewWillAppear(_ animated: Bool) {
         super.viewWillAppear(animated)
         sessionQueue.async { [weak self] in
             guard let self else { return }
@@ -102,6 +100,11 @@ final class FaceDetectionViewController: UIViewController {
             }
         }
         resumeCaptureSession()
+    }
+
+    public override func viewWillDisappear(_ animated: Bool) {
+        super.viewWillDisappear(animated)
+        NotificationCenter.default.removeObserver(self)
     }
 
     // MARK: Private funcs
@@ -160,7 +163,13 @@ final class FaceDetectionViewController: UIViewController {
     }
 
     // MARK: Capture session configuration
-    private func configureCaptureSession() {
+    public func setupCaptureSession() {
+        sessionQueue.async {
+            self.configureCaptureSession()
+        }
+    }
+
+    func configureCaptureSession() {
         captureSession.beginConfiguration()
         // add input device to session
         guard
@@ -269,7 +278,7 @@ final class FaceDetectionViewController: UIViewController {
 }
 
 extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
-    func dataOutputSynchronizer(_ synchronizer: AVCaptureDataOutputSynchronizer, didOutput synchronizedDataCollection: AVCaptureSynchronizedDataCollection) {
+    public func dataOutputSynchronizer(_ synchronizer: AVCaptureDataOutputSynchronizer, didOutput synchronizedDataCollection: AVCaptureSynchronizedDataCollection) {
         guard
             let syncedDepthData: AVCaptureSynchronizedDepthData = synchronizedDataCollection.synchronizedData(for: depthDataOutput) as? AVCaptureSynchronizedDepthData,
             let syncedVideoData: AVCaptureSynchronizedSampleBufferData = synchronizedDataCollection.synchronizedData(for: videoDataOutput) as? AVCaptureSynchronizedSampleBufferData else {
