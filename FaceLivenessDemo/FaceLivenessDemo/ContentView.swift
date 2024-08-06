@@ -8,20 +8,40 @@
 import SwiftUI
 import FaceLivenessDetection
 
+class LivenessResult: ObservableObject {
+    var faceDataModel: LivenessDataModel?
+    var livenessDataModel: LivenessDataModel?
+
+    func addFaceDataModel(_ dataModel: LivenessDataModel) {
+        self.faceDataModel = dataModel
+    }
+
+    func addLivenessDataModel(_ dataModel: LivenessDataModel) {
+        self.livenessDataModel = dataModel
+    }
+}
+
 struct ContentView: View {
-    @State private var faceDataModel: LivenessDataModel?
-    @State private var livenessDataModel: LivenessDataModel?
+    private enum Stage: CaseIterable {
+        case verifying
+        case failure
+        case success
+    }
+    @State private var path: [Stage] = []
+    @State private var stage: Stage? = .verifying
+
+    @StateObject private var livenessResult: LivenessResult = .init()
 
     var body: some View {
         VStack {
-            FaceLivenessDetectionView(onFaceDetectedCompletion: handleFaceDetectedCompletion, onCompletion: handleLivenessDetectionCompletion)
-
-            if let faceDataModel {
-                PreviewImageView(model: faceDataModel)
-            }
-
-            if let livenessDataModel {
-                PreviewImageView(model: livenessDataModel)
+            if #available(iOS 16, *) {
+                NavigationStack(path: $path) {
+                    content
+                }
+            } else {
+                NavigationView {
+                    content
+                }
             }
         }
     }
@@ -29,18 +49,54 @@ struct ContentView: View {
     private func handleFaceDetectedCompletion(_ result: Result<LivenessDataModel, LivenessDetectionError>) {
         switch result {
             case .success(let model):
-                faceDataModel = model
+                livenessResult.addFaceDataModel(model)
             case .failure(let error):
-                debugPrint(error)
+                stage = .failure
+                path.append(.failure)
         }
     }
 
     private func handleLivenessDetectionCompletion(_ result: Result<LivenessDataModel, LivenessDetectionError>) {
         switch result {
             case .success(let model):
-                livenessDataModel = model
+                livenessResult.addLivenessDataModel(model)
+                DispatchQueue.main.asyncAfter(deadline: .now() + 3) {
+                    stage = .success
+                    path.append(.success)
+                }
             case .failure(let error):
-                debugPrint(error)
+                stage = .failure
+                path.append(.failure)
+        }
+    }
+
+    @ViewBuilder
+     var content: some View {
+        FaceLivenessDetectionView(
+            timeInterval: 3,
+            onCompletion: handleLivenessDetectionCompletion
+        )
+        .navigationDestinationWrapper(for: Stage.self, isActive: $stage) { stage in
+            switch stage {
+                case .verifying:
+                    FaceLivenessDetectionView(
+                        timeInterval: 3,
+                        onFaceDetectedCompletion: handleFaceDetectedCompletion,
+                        onCompletion: handleLivenessDetectionCompletion
+                    )
+                case .success:
+                    VStack {
+                        if let faceDataModel = livenessResult.faceDataModel {
+                            PreviewImageView(model: faceDataModel)
+                        }
+
+                        if let livenessDataModel = livenessResult.livenessDataModel {
+                            PreviewImageView(model: livenessDataModel)
+                        }
+                    }
+                case .failure:
+                    Text("Fail stage")
+            }
         }
     }
 }

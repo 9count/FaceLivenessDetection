@@ -47,7 +47,7 @@ public final class FaceDetectionViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     /// Resets the view model to its initial state.
-    public func reset() {
+    public func resetProperties() {
         instruction = .noFace
         predictionResult = nil
         faceDetectedResult = nil

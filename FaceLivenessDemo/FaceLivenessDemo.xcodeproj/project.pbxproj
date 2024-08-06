@@ -7,6 +7,7 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
+		3EEE8FE22C6062A60061692D /* NavigationWrapper.swift in Sources */ = {isa = PBXBuildFile; fileRef = 3EEE8FE12C6062A60061692D /* NavigationWrapper.swift */; };
 		E751C4EB2C10BEEA008A9236 /* FaceLivenessDetection in Frameworks */ = {isa = PBXBuildFile; productRef = E751C4EA2C10BEEA008A9236 /* FaceLivenessDetection */; };
 		E7AC29702C085DAF00FB67D8 /* FaceLivenessDemo.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AC296F2C085DAF00FB67D8 /* FaceLivenessDemo.swift */; };
 		E7AC29722C085DAF00FB67D8 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = E7AC29712C085DAF00FB67D8 /* ContentView.swift */; };
@@ -16,6 +17,7 @@
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
+		3EEE8FE12C6062A60061692D /* NavigationWrapper.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NavigationWrapper.swift; sourceTree = "<group>"; };
 		E7AC296C2C085DAF00FB67D8 /* TestFaceLivenessDetection.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = TestFaceLivenessDetection.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		E7AC296F2C085DAF00FB67D8 /* FaceLivenessDemo.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = FaceLivenessDemo.swift; sourceTree = "<group>"; };
 		E7AC29712C085DAF00FB67D8 /* ContentView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ContentView.swift; sourceTree = "<group>"; };
@@ -57,6 +59,7 @@
 			children = (
 				E7AC296F2C085DAF00FB67D8 /* FaceLivenessDemo.swift */,
 				E7AC29712C085DAF00FB67D8 /* ContentView.swift */,
+				3EEE8FE12C6062A60061692D /* NavigationWrapper.swift */,
 				E7AC29732C085DB000FB67D8 /* Assets.xcassets */,
 				E7AC29752C085DB000FB67D8 /* Preview Content */,
 			);
@@ -148,6 +151,7 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				3EEE8FE22C6062A60061692D /* NavigationWrapper.swift in Sources */,
 				E7AC29722C085DAF00FB67D8 /* ContentView.swift in Sources */,
 				E7AC29702C085DAF00FB67D8 /* FaceLivenessDemo.swift in Sources */,
 			);
