@@ -320,13 +320,13 @@ extension FaceDetectionViewController: AVCaptureDataOutputSynchronizerDelegate {
             return
         }
 
-        if !videoDepthMixer.isPrepared {
-            videoDepthMixer.prepare(with: formatDescription, outputRetainedBufferCountHint: 3)
-        }
-
-        guard
-            let _ = videoDepthMixer.mix(videoPixelBuffer: videoPixelBuffer, depthPixelBuffer: jetPixelBuffer)
-        else { return }
+//        if !videoDepthMixer.isPrepared {
+//            videoDepthMixer.prepare(with: formatDescription, outputRetainedBufferCountHint: 3)
+//        }
+//
+//        guard
+//            let _ = videoDepthMixer.mix(videoPixelBuffer: videoPixelBuffer, depthPixelBuffer: jetPixelBuffer)
+//        else { return }
 
         self.jetPixelBuffer = jetPixelBuffer
 
