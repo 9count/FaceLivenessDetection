@@ -13,6 +13,26 @@ import UIKit
 import VideoToolbox
 import Vision
 
+public extension AVCaptureDevice {
+    public func getSupportedDepthDataFormat() -> AVCaptureDevice.Format? {
+        let depthFormats = self.activeFormat.supportedDepthDataFormats
+        guard !depthFormats.isEmpty else { return nil }
+        
+        let filteredFormats = depthFormats.filter({ format  in
+            CMFormatDescriptionGetMediaSubType(format.formatDescription) == kCVPixelFormatType_DepthFloat16
+        })
+        guard !filteredFormats.isEmpty else {
+            return nil
+        }
+    
+        guard let selectedFormat = filteredFormats.max(by: { CMVideoFormatDescriptionGetDimensions($0.formatDescription).width < CMVideoFormatDescriptionGetDimensions($1.formatDescription).width }) else {
+            return nil
+        }
+
+        return selectedFormat
+    }
+}
+
 public final class FaceDetectionViewController: UIViewController {
     var faceDetectionViewModel: FaceDetectionViewModel
     private var cancellables = Set<AnyCancellable>()
@@ -213,13 +233,7 @@ public final class FaceDetectionViewController: UIViewController {
         captureSession.sessionPreset = .vga640x480
 
         // Search for highest resolution with half-point depth values
-        let depthFormats = videoDevice.activeFormat.supportedDepthDataFormats
-        let filtered = depthFormats.filter {
-            CMFormatDescriptionGetMediaSubType($0.formatDescription) == kCVPixelFormatType_DepthFloat16
-        }
-        let selectedFormat = filtered.max(by: { first, second in
-            CMVideoFormatDescriptionGetDimensions(first.formatDescription).width < CMVideoFormatDescriptionGetDimensions(second.formatDescription).width
-        })
+        let selectedFormat = videoDevice.getSupportedDepthDataFormat()
 
         do {
             try videoDevice.lockForConfiguration()
