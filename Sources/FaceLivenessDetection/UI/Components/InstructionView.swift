@@ -17,7 +17,7 @@ public struct InstructionView: View {
     public var body: some View {
         Text(instruction.rawValue)
             .foregroundStyle(instruction == .faceFit ? Color(.greenExtraDark) : Color(.redDark))
-            .font(UIFont(name: "ABC-Regular", size: 16))
+            .font(.custom("ABCSolar-Regular", size: 16))
             .multilineTextAlignment(.center)
             .frame(maxWidth: .infinity)
     }
